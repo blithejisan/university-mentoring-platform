@@ -1,0 +1,554 @@
+// ─────────────────────────────────────────────────────────────────────────
+// University Mentoring & Student Management Platform
+// Prisma schema — Phase 1 (Foundation)
+//
+// Scope note: every entity from the locked Phase 0 design is modeled here
+// so migrations don't need to be reshaped later, but only the auth/user
+// structure is wired up to application code in Phase 1. Attendance,
+// notices, performance, etc. are schema-ready for Phase 2/3.
+// ─────────────────────────────────────────────────────────────────────────
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ── Enums ───────────────────────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  MENTOR
+  MODERATOR
+  STUDENT
+}
+
+// Account lifecycle status. Students go straight to ACTIVE after email
+// verification. Mentors pass through the approval sub-flow below.
+enum AccountStatus {
+  PENDING_VERIFICATION
+  PENDING_APPROVAL // mentors only: verified, awaiting admin/moderator review
+  ACTIVE
+  REJECTED
+  SUSPENDED
+}
+
+enum MentorApprovalStatus {
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+}
+
+enum BatchStatus {
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+enum SessionStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+
+enum PerformanceMode {
+  SIMPLE
+  CATEGORY
+}
+
+enum NoticeTargetType {
+  ALL
+  DEPARTMENT
+  BATCH
+  STUDENT
+}
+
+enum NoticeStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum RemarkStatus {
+  OPEN
+  IN_REVIEW
+  RESOLVED
+}
+
+enum EmailType {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+  MENTOR_APPROVED
+  MENTOR_REJECTED
+  NOTICE
+  REMARK
+  OTHER
+}
+
+enum EmailStatus {
+  QUEUED
+  SENT
+  FAILED
+}
+
+enum ModeratorScopeType {
+  DEPARTMENT
+  BATCH
+  UNIVERSITY
+}
+
+// ── Core organizational hierarchy ──────────────────────────────────────
+
+model University {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  departments Department[]
+  users       User[]
+
+  @@map("universities")
+}
+
+model Department {
+  id                      String   @id @default(cuid())
+  universityId            String   @map("university_id")
+  name                    String
+  code                    String
+  // Configurable per-department setting — never hardcoded in business logic.
+  lowAttendanceThreshold  Int      @default(60) @map("low_attendance_threshold")
+  createdAt               DateTime @default(now()) @map("created_at")
+
+  university        University         @relation(fields: [universityId], references: [id])
+  batches           Batch[]
+  studentProfiles   StudentProfile[]
+  mentorProfiles    MentorProfile[]
+  moderatorProfiles ModeratorProfile[]
+  noticesTargeted   Notice[]
+
+  @@unique([universityId, code])
+  @@map("departments")
+}
+
+// ── Auth / users ────────────────────────────────────────────────────────
+
+// Single central auth table. Role-specific data lives in the profile
+// tables below so a user's role can change without rebuilding auth.
+model User {
+  id                 String        @id @default(cuid())
+  universityId       String        @map("university_id")
+  role               Role
+  // The login identifier (Student/University ID). Globally unique
+  // across the whole university per the locked Phase 0 decision.
+  universityIdNumber String        @unique @map("university_id_number")
+  name               String?
+  email              String        @unique
+  // Optional university-provided contact email; email is the personal verification address.
+  altEmail           String?       @map("alt_email")
+  passwordHash       String        @map("password_hash")
+  status             AccountStatus @default(PENDING_VERIFICATION)
+  emailVerifiedAt    DateTime?     @map("email_verified_at")
+  createdAt          DateTime      @default(now()) @map("created_at")
+  updatedAt          DateTime      @updatedAt @map("updated_at")
+
+  university University @relation(fields: [universityId], references: [id])
+
+  studentProfile   StudentProfile?
+  mentorProfile    MentorProfile?
+  moderatorProfile ModeratorProfile?
+
+  emailVerificationTokens EmailVerificationToken[]
+  passwordResetTokens     PasswordResetToken[]
+
+  // Reverse relations for actions this user performed on others.
+  approvedMentors MentorProfile[] @relation("MentorApprovedBy")
+  rejectedMentors MentorProfile[] @relation("MentorRejectedBy")
+  auditLogs       AuditLog[]      @relation("AuditActor")
+
+  attendanceSessionsRun  AttendanceSession[] @relation("SessionMentor")
+  attendanceEdits        AttendanceEditLog[] @relation("AttendanceEditor")
+  performanceRecordsMade PerformanceRecord[] @relation("PerformanceRecorder")
+  remarksAuthored        Remark[]            @relation("RemarkMentor")
+  remarksResolved        Remark[]            @relation("RemarkResolver")
+  noticesAuthored        Notice[]            @relation("NoticeAuthor")
+  schedulesAuthored      Schedule[]          @relation("ScheduleMentor")
+
+  @@map("users")
+}
+
+model StudentProfile {
+  userId       String    @id @map("user_id")
+  departmentId String    @map("department_id")
+  // The Student ID itself lives on User.universityIdNumber (globally
+  // unique, the primary search key). No duplicate ID field here.
+  phone        String?
+  semester     Int?
+  archivedAt   DateTime? @map("archived_at")
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department Department @relation(fields: [departmentId], references: [id])
+
+  studentBatches     StudentBatch[]
+  attendanceRecords  AttendanceRecord[]
+  performanceRecords PerformanceRecord[]
+  remarks            Remark[]
+  noticesTargeted    Notice[]
+  mentorEvaluations  MentorEvaluation[]
+
+  @@index([departmentId])
+  @@map("student_profiles")
+}
+
+model MentorProfile {
+  userId           String                @id @map("user_id")
+  departmentId     String                @map("department_id")
+  approvalStatus   MentorApprovalStatus  @default(PENDING_APPROVAL) @map("approval_status")
+  approvedById     String?               @map("approved_by")
+  approvedAt       DateTime?             @map("approved_at")
+  rejectedById     String?               @map("rejected_by")
+  rejectedAt       DateTime?             @map("rejected_at")
+  rejectionReason  String?               @map("rejection_reason")
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department Department @relation(fields: [departmentId], references: [id])
+  approvedBy User?      @relation("MentorApprovedBy", fields: [approvedById], references: [id])
+  rejectedBy User?      @relation("MentorRejectedBy", fields: [rejectedById], references: [id])
+
+  mentorBatches     MentorBatch[]
+  mentorEvaluations MentorEvaluation[]
+
+  @@index([departmentId, approvalStatus])
+  @@map("mentor_profiles")
+}
+
+model ModeratorProfile {
+  userId       String              @id @map("user_id")
+  departmentId String              @map("department_id")
+  // scopeType defaults to DEPARTMENT for MVP; BATCH/UNIVERSITY are modeled
+  // now so scope can be widened later without a schema change.
+  scopeType    ModeratorScopeType  @default(DEPARTMENT) @map("scope_type")
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department Department @relation(fields: [departmentId], references: [id])
+
+  @@map("moderator_profiles")
+}
+
+// ── Batches & assignment ──────────────────────────────────────────────
+
+model Batch {
+  id           String      @id @default(cuid())
+  departmentId String      @map("department_id")
+  name         String
+  startDate    DateTime?   @map("start_date")
+  endDate      DateTime?   @map("end_date")
+  status       BatchStatus @default(ACTIVE)
+  description  String?
+  archivedAt   DateTime?   @map("archived_at")
+  createdAt    DateTime    @default(now()) @map("created_at")
+
+  department Department @relation(fields: [departmentId], references: [id])
+
+  mentorBatches       MentorBatch[]
+  studentBatches      StudentBatch[]
+  attendanceSessions  AttendanceSession[]
+  performanceRecords  PerformanceRecord[]
+  schedules           Schedule[]
+  mentorEvaluations   MentorEvaluation[]
+  noticesTargeted     Notice[]
+  remarks             Remark[]
+
+  @@index([departmentId])
+  @@map("batches")
+}
+
+// Batch-level mentor authorization (locked Phase 0 decision).
+model MentorBatch {
+  mentorId String @map("mentor_id")
+  batchId  String @map("batch_id")
+
+  mentor MentorProfile @relation(fields: [mentorId], references: [userId])
+  batch  Batch         @relation(fields: [batchId], references: [id])
+
+  @@id([mentorId, batchId])
+  @@map("mentor_batches")
+}
+
+model StudentBatch {
+  studentId String    @map("student_id")
+  batchId   String    @map("batch_id")
+  joinedAt  DateTime  @default(now()) @map("joined_at")
+  leftAt    DateTime? @map("left_at")
+
+  student StudentProfile @relation(fields: [studentId], references: [userId])
+  batch   Batch          @relation(fields: [batchId], references: [id])
+
+  @@id([studentId, batchId])
+  @@map("student_batches")
+}
+
+// ── Attendance ─────────────────────────────────────────────────────────
+
+model AttendanceSession {
+  id        String        @id @default(cuid())
+  batchId   String        @map("batch_id")
+  date      DateTime
+  startTime DateTime?     @map("start_time")
+  endTime   DateTime?     @map("end_time")
+  topic     String?
+  location  String?
+  mentorId  String        @map("mentor_id")
+  status    SessionStatus @default(SCHEDULED)
+  notes     String?
+  createdAt DateTime      @default(now()) @map("created_at")
+
+  batch  Batch @relation(fields: [batchId], references: [id])
+  mentor User  @relation("SessionMentor", fields: [mentorId], references: [id])
+
+  attendanceRecords AttendanceRecord[]
+  mentorEvaluations MentorEvaluation[]
+
+  @@index([batchId, date])
+  @@map("attendance_sessions")
+}
+
+model AttendanceRecord {
+  id          String            @id @default(cuid())
+  sessionId   String            @map("session_id")
+  studentId   String            @map("student_id")
+  status      AttendanceStatus
+  finalizedAt DateTime?         @map("finalized_at")
+  createdAt   DateTime          @default(now()) @map("created_at")
+
+  session AttendanceSession @relation(fields: [sessionId], references: [id])
+  student StudentProfile    @relation(fields: [studentId], references: [userId])
+
+  edits AttendanceEditLog[]
+
+  @@unique([sessionId, studentId])
+  @@map("attendance_records")
+}
+
+// Post-finalization correction trail (locked Phase 0 decision: reason
+// required, no secondary approval step in MVP).
+model AttendanceEditLog {
+  id                 String   @id @default(cuid())
+  attendanceRecordId String   @map("attendance_record_id")
+  changedById        String   @map("changed_by")
+  previousStatus     AttendanceStatus @map("previous_status")
+  newStatus          AttendanceStatus @map("new_status")
+  reason             String
+  changedAt          DateTime @default(now()) @map("changed_at")
+
+  record    AttendanceRecord @relation(fields: [attendanceRecordId], references: [id])
+  changedBy User             @relation("AttendanceEditor", fields: [changedById], references: [id])
+
+  @@map("attendance_edit_log")
+}
+
+// ── Performance ───────────────────────────────────────────────────────
+
+model PerformanceRecord {
+  id         String          @id @default(cuid())
+  studentId  String          @map("student_id")
+  batchId    String          @map("batch_id")
+  mode       PerformanceMode
+  category   String?
+  score      Float
+  recordedById String        @map("recorded_by")
+  recordedAt DateTime        @default(now()) @map("recorded_at")
+
+  student    StudentProfile @relation(fields: [studentId], references: [userId])
+  batch      Batch          @relation(fields: [batchId], references: [id])
+  recordedBy User           @relation("PerformanceRecorder", fields: [recordedById], references: [id])
+
+  @@index([studentId])
+  @@map("performance_records")
+}
+
+// ── Remarks / objections ────────────────────────────────────────────────
+
+model Remark {
+  id              String       @id @default(cuid())
+  studentId       String       @map("student_id")
+  mentorId        String       @map("mentor_id")
+  batchId         String       @map("batch_id")
+  type            String
+  description     String
+  status          RemarkStatus @default(OPEN)
+  resolutionNote  String?      @map("resolution_note")
+  resolvedAt      DateTime?    @map("resolved_at")
+  resolvedById    String?      @map("resolved_by")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  student    StudentProfile @relation(fields: [studentId], references: [userId])
+  mentor     User           @relation("RemarkMentor", fields: [mentorId], references: [id])
+  batch      Batch          @relation(fields: [batchId], references: [id])
+  resolvedBy User?          @relation("RemarkResolver", fields: [resolvedById], references: [id])
+
+  @@index([studentId])
+  @@index([mentorId])
+  @@index([batchId])
+  @@map("remarks")
+}
+
+// ── Notices ──────────────────────────────────────────────────────────────
+
+model Notice {
+  id                 String           @id @default(cuid())
+  createdById        String           @map("created_by")
+  title              String
+  message            String
+  targetType         NoticeTargetType @map("target_type")
+  targetDepartmentId String?          @map("target_department_id")
+  targetBatchId      String?          @map("target_batch_id")
+  targetStudentId    String?          @map("target_student_id")
+  status             NoticeStatus     @default(ACTIVE) @map("status")
+  publishAt          DateTime?        @map("publish_at")
+  expiryAt           DateTime?        @map("expiry_at")
+  archivedAt         DateTime?        @map("archived_at")
+  createdAt          DateTime         @default(now()) @map("created_at")
+  updatedAt          DateTime         @updatedAt @map("updated_at")
+
+  createdBy        User             @relation("NoticeAuthor", fields: [createdById], references: [id])
+  targetDepartment Department?      @relation(fields: [targetDepartmentId], references: [id])
+  targetBatch      Batch?           @relation(fields: [targetBatchId], references: [id])
+  targetStudent    StudentProfile?  @relation(fields: [targetStudentId], references: [userId])
+
+  @@index([createdById])
+  @@index([targetDepartmentId])
+  @@index([targetBatchId])
+  @@map("notices")
+}
+
+// ── Routine / scheduling ─────────────────────────────────────────────────
+
+model Schedule {
+  id        String        @id @default(cuid())
+  batchId   String        @map("batch_id")
+  date      DateTime
+  startTime DateTime?     @map("start_time")
+  endTime   DateTime?     @map("end_time")
+  location  String?
+  topic     String?
+  mentorId  String        @map("mentor_id")
+  notes     String?
+  status    SessionStatus @default(SCHEDULED)
+
+  batch  Batch @relation(fields: [batchId], references: [id])
+  mentor User  @relation("ScheduleMentor", fields: [mentorId], references: [id])
+
+  @@index([batchId, date])
+  @@map("schedules")
+}
+
+// ── Email ──────────────────────────────────────────────────────────────
+
+// Configurable, variable-driven email templates (locked Phase 0 decision:
+// settings-table based, not a hardcoded string in business logic).
+model EmailTemplate {
+  key       String   @id // e.g. "MENTOR_APPROVED", "MENTOR_REJECTED", "EMAIL_VERIFICATION"
+  subject   String
+  body      String   // supports {{variable}} placeholders
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("email_templates")
+}
+
+model EmailLog {
+  id              String      @id @default(cuid())
+  recipient       String
+  relatedNoticeId String?     @map("related_notice_id")
+  type            EmailType
+  status          EmailStatus @default(QUEUED)
+  error           String?
+  sentAt          DateTime?   @map("sent_at")
+  createdAt       DateTime    @default(now()) @map("created_at")
+
+  @@map("email_logs")
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  tokenHash String   @unique @map("token_hash")
+  expiresAt DateTime @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("email_verification_tokens")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("password_reset_tokens")
+}
+
+// ── Audit log ─────────────────────────────────────────────────────────
+
+model AuditLog {
+  id            String   @id @default(cuid())
+  actorId       String?  @map("actor_id")
+  actorRole     Role?    @map("actor_role")
+  action        String   // e.g. "MENTOR_APPROVED", "MENTOR_REJECTED", "ATTENDANCE_EDITED"
+  targetType    String   @map("target_type")
+  targetId      String   @map("target_id")
+  previousValue Json?    @map("previous_value")
+  newValue      Json?    @map("new_value")
+  reason        String?
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  actor User? @relation("AuditActor", fields: [actorId], references: [id])
+
+  @@index([targetType, targetId])
+  @@map("audit_logs")
+}
+
+// ── Student Mentor Evaluations ──────────────────────────────────────────
+
+model MentorEvaluation {
+  id                   String            @id @default(cuid())
+  studentId            String            @map("student_id")
+  mentorId             String            @map("mentor_id")
+  sessionId            String            @map("session_id")
+  batchId              String            @map("batch_id")
+  overallRating        Int               @map("overall_rating")
+  communicationRating  Int?              @map("communication_rating")
+  helpfulnessRating    Int?              @map("helpfulness_rating")
+  sessionQualityRating Int?              @map("session_quality_rating")
+  supportRating        Int?              @map("support_rating")
+  comment              String?
+  createdAt            DateTime          @default(now()) @map("created_at")
+  updatedAt            DateTime          @updatedAt @map("updated_at")
+
+  student StudentProfile    @relation(fields: [studentId], references: [userId])
+  mentor  MentorProfile     @relation(fields: [mentorId], references: [userId])
+  session AttendanceSession @relation(fields: [sessionId], references: [id])
+  batch   Batch             @relation(fields: [batchId], references: [id])
+
+  @@unique([studentId, sessionId])
+  @@index([mentorId])
+  @@index([sessionId])
+  @@index([batchId])
+  @@map("mentor_evaluations")
+}
+

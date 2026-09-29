@@ -1,0 +1,76 @@
+import { redirect } from "next/navigation";
+import Link from "next/link";
+import { getCurrentUser } from "@/lib/auth/session";
+import { prisma } from "@/lib/prisma";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DepartmentAttendanceOverviewCard } from "@/components/department-attendance-overview";
+import { AdminNoticesManagement } from "@/components/admin-notices-management";
+import { DepartmentRemarksOversight } from "@/components/department-remarks-oversight";
+import { SessionMonitoringDashboard } from "@/components/session-monitoring-dashboard";
+
+export default async function ModeratorDashboardPage() {
+  const session = await getCurrentUser();
+  if (!session) redirect("/login");
+  if (session.role !== "MODERATOR") redirect("/");
+
+  const modProfile = await prisma.moderatorProfile.findUnique({
+    where: { userId: session.sub },
+    select: { departmentId: true },
+  });
+
+  return (
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-7">
+      <div className="flex flex-col items-start justify-between gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-center">
+        <div>
+          <p className="text-sm font-medium text-[#34724f]">Moderator portal</p>
+          <h1 className="mt-1 text-2xl font-semibold leading-tight text-slate-900">Department Dashboard</h1>
+        </div>
+      </div>
+
+      <DepartmentAttendanceOverviewCard />
+
+      <SessionMonitoringDashboard role="MODERATOR" />
+
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Mentor Applications</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="mb-3 text-sm text-muted-foreground">
+              Review pending mentor applications for your department.
+            </p>
+            <Link href="/moderator/mentors/pending" className="text-sm font-medium text-primary hover:underline">
+              View pending mentors →
+            </Link>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Department Batches</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="mb-3 text-sm text-muted-foreground">
+              Create batches, assign mentors, and manage student batch enrollments.
+            </p>
+            <Link href="/moderator/batches" className="text-sm font-medium text-primary hover:underline">
+              Manage department batches →
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="border-t border-slate-200 pt-6">
+        <AdminNoticesManagement
+          role="MODERATOR"
+          scopedDepartmentId={modProfile?.departmentId}
+        />
+      </div>
+
+      <div className="border-t border-slate-200 pt-6">
+        <DepartmentRemarksOversight label="Department Remarks Oversight" />
+      </div>
+    </div>
+  );
+}
