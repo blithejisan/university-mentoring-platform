@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
         ...(filterDepartmentId ? { departmentId: filterDepartmentId } : {}),
       },
       select: {
+        userId: true,
         user: { select: { id: true, name: true, universityIdNumber: true, email: true } },
         department: { select: { name: true, code: true } },
       },

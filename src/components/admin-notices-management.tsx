@@ -23,6 +23,11 @@ interface Batch {
   departmentId: string;
 }
 
+interface StudentOption {
+  userId: string;
+  user: { id: string; name: string | null; universityIdNumber: string; email: string };
+}
+
 interface Notice {
   id: string;
   title: string;
@@ -31,6 +36,7 @@ interface Notice {
   targetBatch?: { id: string; name: string } | null;
   targetDepartment?: { id: string; name: string; code: string } | null;
   status: "ACTIVE" | "ARCHIVED";
+  publishAt: string | null;
   expiryAt: string | null;
   createdAt: string;
   createdBy: { universityIdNumber: string; email: string; role: string };
@@ -73,14 +79,18 @@ function CreateNoticeForm({
   onCancel: () => void;
 }) {
   const allowedTargets: TargetType[] = role === "ADMIN"
-    ? ["ALL", "DEPARTMENT", "BATCH"]
-    : ["DEPARTMENT", "BATCH"];
+    ? ["ALL", "DEPARTMENT", "BATCH", "STUDENT"]
+    : ["DEPARTMENT", "BATCH", "STUDENT"];
 
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [targetType, setTargetType] = useState<TargetType>(allowedTargets[0]);
   const [targetDepartmentId, setTargetDepartmentId] = useState(scopedDepartmentId ?? departments[0]?.id ?? "");
   const [targetBatchId, setTargetBatchId] = useState("");
+  const [targetStudentId, setTargetStudentId] = useState("");
+  const [studentSearch, setStudentSearch] = useState("");
+  const [studentOptions, setStudentOptions] = useState<StudentOption[]>([]);
+  const [publishAt, setPublishAt] = useState("");
   const [expiryAt, setExpiryAt] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -88,6 +98,24 @@ function CreateNoticeForm({
   const filteredBatches = scopedDepartmentId
     ? batches.filter((b) => b.departmentId === scopedDepartmentId)
     : batches.filter((b) => !targetDepartmentId || b.departmentId === targetDepartmentId);
+
+  useEffect(() => {
+    if (targetType !== "STUDENT" || !studentSearch.trim()) {
+      setStudentOptions([]);
+      return;
+    }
+    const controller = new AbortController();
+    fetch(`/api/students/search?q=${encodeURIComponent(studentSearch.trim())}&purpose=notice`, { signal: controller.signal })
+      .then(async (response) => {
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error ?? "Unable to search students.");
+        setStudentOptions(payload.students ?? []);
+      })
+      .catch((cause: unknown) => {
+        if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : "Unable to search students.");
+      });
+    return () => controller.abort();
+  }, [studentSearch, targetType]);
 
   useEffect(() => {
     setTargetBatchId(filteredBatches[0]?.id ?? "");
@@ -106,7 +134,10 @@ function CreateNoticeForm({
         body.targetDepartmentId = targetDepartmentId;
       } else if (targetType === "BATCH") {
         body.targetBatchId = targetBatchId;
+      } else if (targetType === "STUDENT") {
+        body.targetStudentId = targetStudentId;
       }
+      if (publishAt) body.publishAt = new Date(publishAt).toISOString();
       if (expiryAt) body.expiryAt = new Date(expiryAt).toISOString();
 
       const res = await fetch("/api/notices", {
@@ -201,6 +232,22 @@ function CreateNoticeForm({
           </select>
         </div>
       )}
+
+      {targetType === "STUDENT" && (
+        <div className="space-y-1">
+          <Label htmlFor="admin-student-search">Find student by ID or email *</Label>
+          <Input id="admin-student-search" value={studentSearch} onChange={(event) => { setStudentSearch(event.target.value); setTargetStudentId(""); }} required />
+          <select className="w-full border rounded-md px-3 py-2 text-sm bg-background" value={targetStudentId} onChange={(event) => setTargetStudentId(event.target.value)} required>
+            <option value="">Select a student</option>
+            {studentOptions.map((student) => <option key={student.userId} value={student.userId}>{student.user.name ?? student.user.universityIdNumber} · {student.user.universityIdNumber} · {student.user.email}</option>)}
+          </select>
+        </div>
+      )}
+
+      <div className="space-y-1">
+        <Label htmlFor="admin-notice-publish">Publish at (optional)</Label>
+        <Input id="admin-notice-publish" type="datetime-local" value={publishAt} onChange={(event) => setPublishAt(event.target.value)} />
+      </div>
 
       <div className="space-y-1">
         <Label htmlFor="admin-notice-expiry">Expiry Date (optional)</Label>
@@ -359,6 +406,7 @@ export function AdminNoticesManagement({ role, scopedDepartmentId }: Props) {
                         ? ` · ${n.targetDepartment.name}`
                         : ""}
                     </span>
+                      {n.publishAt && new Date(n.publishAt) > new Date() && <span className="text-xs rounded-full bg-sky-100 px-2 py-0.5 text-sky-700">Scheduled</span>}
                     <span className="text-xs text-muted-foreground">
                       by {n.createdBy.universityIdNumber} ({n.createdBy.role})
                     </span>
@@ -388,6 +436,7 @@ export function AdminNoticesManagement({ role, scopedDepartmentId }: Props) {
                 {n.expiryAt && (
                   <span>Expires {new Date(n.expiryAt).toLocaleDateString()}</span>
                 )}
+                {n.publishAt && <span>Publishes {new Date(n.publishAt).toLocaleString()}</span>}
               </div>
             </div>
           ))}

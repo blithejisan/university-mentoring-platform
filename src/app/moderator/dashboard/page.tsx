@@ -7,6 +7,8 @@ import { DepartmentAttendanceOverviewCard } from "@/components/department-attend
 import { AdminNoticesManagement } from "@/components/admin-notices-management";
 import { DepartmentRemarksOversight } from "@/components/department-remarks-oversight";
 import { SessionMonitoringDashboard } from "@/components/session-monitoring-dashboard";
+import { BatchPerformanceReport } from "@/components/batch-performance-report";
+import { ScopedUpcomingSessions } from "@/components/scoped-upcoming-sessions";
 
 export default async function ModeratorDashboardPage() {
   const session = await getCurrentUser();
@@ -30,6 +32,8 @@ export default async function ModeratorDashboardPage() {
       <DepartmentAttendanceOverviewCard />
 
       <SessionMonitoringDashboard role="MODERATOR" />
+      <ScopedUpcomingSessions role="MODERATOR" />
+      <BatchPerformanceReport role="MODERATOR" />
 
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
         <Card>

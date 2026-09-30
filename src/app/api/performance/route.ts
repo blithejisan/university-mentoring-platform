@@ -1,7 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, authErrorResponse } from "@/lib/auth/guards";
-import { createPerformanceRecord } from "@/lib/services/performance";
+import { createPerformanceRecord, getBatchPerformanceReport } from "@/lib/services/performance";
 import { createPerformanceSchema } from "@/lib/validation/performance";
+import { parseReportFilters } from "@/lib/validation/report-filters";
+
+export async function GET(request: NextRequest) {
+  try {
+    const actor = await requireUser(["ADMIN", "MODERATOR", "MENTOR"]);
+    const filters = parseReportFilters(request.nextUrl.searchParams);
+    const report = await getBatchPerformanceReport(actor, filters);
+    return NextResponse.json({ report });
+  } catch (error) {
+    return authErrorResponse(error) ?? NextResponse.json({ error: "Unexpected error." }, { status: 500 });
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {

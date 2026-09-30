@@ -7,8 +7,9 @@ export async function GET(request: NextRequest) {
     const actor = await requireUser(["ADMIN", "MODERATOR", "MENTOR"]);
     const { searchParams } = new URL(request.url);
     const q = searchParams.get("q") ?? "";
+    const includeNonActive = searchParams.get("purpose") === "notice";
 
-    const students = await searchStudents(actor, q);
+    const students = await searchStudents(actor, q, { includeNonActive });
     return NextResponse.json({ students });
   } catch (error) {
     return authErrorResponse(error) ?? NextResponse.json({ error: "Unexpected error." }, { status: 500 });

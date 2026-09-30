@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { LogoutButton } from "@/components/logout-button";
+import { NotificationCenter } from "@/components/notification-center";
 import { FlaskConical } from "lucide-react";
 
 export function Navbar() {
@@ -97,6 +98,7 @@ export function Navbar() {
             <span>Student Portal</span>
             <span className="text-xs font-semibold">↗</span>
           </a>
+          {routes && !isPendingApproval && <NotificationCenter />}
           {routes && (
             <LogoutButton
               showIcon

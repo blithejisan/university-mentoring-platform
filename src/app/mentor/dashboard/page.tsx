@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MentorEvaluationsDashboard } from "@/components/mentor-evaluations-dashboard";
 import { MentorNoticesManagement } from "@/components/mentor-notices-management";
 import { MentorRemarksManagement } from "@/components/mentor-remarks-management";
+import { BatchPerformanceReport } from "@/components/batch-performance-report";
 
 export default async function MentorDashboardPage() {
   const session = await getCurrentUser();
@@ -65,6 +66,8 @@ export default async function MentorDashboardPage() {
       <div className="border-t border-slate-200 pt-6">
         <MentorRemarksManagement />
       </div>
+
+      <BatchPerformanceReport role="MENTOR" />
 
       <div className="border-t border-slate-200 pt-6">
         <MentorEvaluationsDashboard />

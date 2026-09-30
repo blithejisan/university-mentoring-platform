@@ -9,7 +9,10 @@ export type EmailTemplateKey =
   | "EMAIL_VERIFICATION"
   | "PASSWORD_RESET"
   | "MENTOR_APPROVED"
-  | "MENTOR_REJECTED";
+  | "MENTOR_REJECTED"
+  | "NOTICE"
+  | "REMARK"
+  | "SESSION_REMINDER";
 
 type TemplateVars = Record<string, string>;
 
@@ -336,9 +339,13 @@ function buildMentorDecisionHtml(vars: TemplateVars, approved: boolean): string 
  */
 export async function renderEmailTemplate(
   key: EmailTemplateKey,
-  vars: TemplateVars
+  vars: TemplateVars,
+  universityId?: string
 ): Promise<{ subject: string; html: string; text: string }> {
-  const row = await prisma.emailTemplate.findUnique({ where: { key } });
+  const row = universityId
+    ? (await prisma.emailTemplate.findUnique({ where: { key: `${universityId}:${key}` } }))
+      ?? (await prisma.emailTemplate.findUnique({ where: { key } }))
+    : await prisma.emailTemplate.findUnique({ where: { key } });
   const fallback = DEFAULT_TEMPLATES[key];
   const normalizedVars = {
     ...vars,
@@ -372,11 +379,12 @@ export async function renderEmailTemplate(
   }
 
   const body = interpolate(row?.body ?? fallback.body, normalizedVars);
+  const html = escapeHtml(body).replace(/\n/g, "<br />");
 
-  return { subject, html: body.replace(/\n/g, "<br />"), text: body };
+  return { subject, html: html.replace(/\n/g, "<br />"), text: body };
 }
 
-const DEFAULT_TEMPLATES: Record<EmailTemplateKey, { subject: string; body: string }> = {
+export const DEFAULT_TEMPLATES: Record<EmailTemplateKey, { subject: string; body: string }> = {
   EMAIL_VERIFICATION: {
     subject: "Verify your email address",
     body:
@@ -396,5 +404,17 @@ const DEFAULT_TEMPLATES: Record<EmailTemplateKey, { subject: string; body: strin
     subject: "Mentor Application Update | {{universityName}}",
     body:
       "Mentor Application Update",
+  },
+  NOTICE: {
+    subject: "New notice: {{title}}",
+    body: "Hi {{name}},\n\n{{message}}\n\nOpen the portal: {{url}}",
+  },
+  REMARK: {
+    subject: "Mentor remark: {{remarkType}}",
+    body: "Hi {{name}},\n\n{{message}}\n\nOpen the portal: {{url}}",
+  },
+  SESSION_REMINDER: {
+    subject: "Upcoming mentoring session: {{topic}}",
+    body: "Hi {{name}},\n\n{{details}}\n\nOpen the portal: {{url}}",
   },
 };

@@ -90,7 +90,14 @@ enum EmailType {
   MENTOR_REJECTED
   NOTICE
   REMARK
+  SESSION_REMINDER
   OTHER
+}
+
+enum NotificationType {
+  NOTICE
+  SESSION
+  REMARK
 }
 
 enum EmailStatus {
@@ -180,6 +187,8 @@ model User {
   remarksResolved        Remark[]            @relation("RemarkResolver")
   noticesAuthored        Notice[]            @relation("NoticeAuthor")
   schedulesAuthored      Schedule[]          @relation("ScheduleMentor")
+  notifications          Notification[]
+  notificationPreference NotificationPreference?
 
   @@map("users")
 }
@@ -315,6 +324,8 @@ model AttendanceSession {
 
   attendanceRecords AttendanceRecord[]
   mentorEvaluations MentorEvaluation[]
+  emailLogs         EmailLog[]
+  notifications     Notification[]
 
   @@index([batchId, date])
   @@map("attendance_sessions")
@@ -423,6 +434,7 @@ model Notice {
   targetDepartment Department?      @relation(fields: [targetDepartmentId], references: [id])
   targetBatch      Batch?           @relation(fields: [targetBatchId], references: [id])
   targetStudent    StudentProfile?  @relation(fields: [targetStudentId], references: [userId])
+  notifications    Notification[]
 
   @@index([createdById])
   @@index([targetDepartmentId])
@@ -468,13 +480,56 @@ model EmailLog {
   id              String      @id @default(cuid())
   recipient       String
   relatedNoticeId String?     @map("related_notice_id")
+  relatedSessionId String?    @map("related_session_id")
+  dedupeKey       String?     @unique @map("dedupe_key")
   type            EmailType
   status          EmailStatus @default(QUEUED)
   error           String?
   sentAt          DateTime?   @map("sent_at")
   createdAt       DateTime    @default(now()) @map("created_at")
 
+  relatedSession AttendanceSession? @relation(fields: [relatedSessionId], references: [id], onDelete: SetNull)
+
   @@map("email_logs")
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String           @map("user_id")
+  noticeId  String?          @map("notice_id")
+  sessionId String?          @map("session_id")
+  type      NotificationType
+  title     String
+  message   String
+  href      String?
+  sourceKey String           @map("source_key")
+  readAt    DateTime?        @map("read_at")
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notice Notice? @relation(fields: [noticeId], references: [id], onDelete: Cascade)
+  session AttendanceSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, sourceKey])
+  @@index([userId, readAt, createdAt])
+  @@index([noticeId])
+  @@index([sessionId])
+  @@map("notifications")
+}
+
+model NotificationPreference {
+  userId                String   @id @map("user_id")
+  inAppNotices          Boolean  @default(true) @map("in_app_notices")
+  emailNotices          Boolean  @default(true) @map("email_notices")
+  inAppSessions         Boolean  @default(true) @map("in_app_sessions")
+  emailSessionReminders Boolean  @default(true) @map("email_session_reminders")
+  inAppRemarks          Boolean  @default(true) @map("in_app_remarks")
+  emailRemarks          Boolean  @default(true) @map("email_remarks")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_preferences")
 }
 
 model EmailVerificationToken {

@@ -111,6 +111,17 @@ screens are a later phase).
 See `.env.example` for the full list with descriptions. Never commit
 `.env` — it's already covered by `.gitignore`.
 
+## Phase 6 communication scheduler
+
+Apply the Phase 6 Prisma migration before running the application. Configure
+`COMMUNICATION_CRON_SECRET` and schedule an external job to send a `POST` to
+`/api/cron/communication` with `Authorization: Bearer <secret>` at least once
+every 15 minutes. The endpoint publishes due notices and sends reminders for
+scheduled `AttendanceSession` records within 24 hours of their start time.
+Configure `APP_URL` and the email provider for links and delivery. Repeated
+dispatches are deduplicated through `EmailLog`; failed delivery attempts are
+recorded and may be retried by a later run.
+
 ## Project structure
 
 ```

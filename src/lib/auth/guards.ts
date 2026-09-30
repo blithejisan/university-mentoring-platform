@@ -62,13 +62,18 @@ export async function requireModeratorOwnsDepartment(
   actor: AccessTokenPayload,
   departmentId: string
 ): Promise<void> {
+  const [department, user] = await Promise.all([
+    prisma.department.findUnique({ where: { id: departmentId }, select: { universityId: true } }),
+    prisma.user.findUnique({ where: { id: actor.sub }, select: { universityId: true } }),
+  ]);
+  if (!department || !user || department.universityId !== user.universityId) {
+    throw new AuthError("Not authorized to access resources outside your university.", 403);
+  }
   if (actor.role === "ADMIN") return;
   if (actor.role !== "MODERATOR") {
     throw new AuthError("Not authorized to manage department resources.", 403);
   }
-  const moderator = await prisma.moderatorProfile.findUnique({
-    where: { userId: actor.sub },
-  });
+  const moderator = await prisma.moderatorProfile.findUnique({ where: { userId: actor.sub } });
   if (!moderator || moderator.departmentId !== departmentId) {
     throw new AuthError("Not authorized to manage batches outside your department.", 403);
   }
@@ -78,10 +83,8 @@ export async function requireMentorOwnsBatch(
   actor: AccessTokenPayload,
   batchId: string
 ): Promise<void> {
-  if (actor.role === "ADMIN") return;
-
-  if (actor.role === "MODERATOR") {
-    const batch = await prisma.batch.findUnique({ where: { id: batchId } });
+  if (actor.role === "ADMIN" || actor.role === "MODERATOR") {
+    const batch = await prisma.batch.findUnique({ where: { id: batchId }, select: { departmentId: true } });
     if (!batch) throw new AuthError("Batch not found.", 403);
     await requireModeratorOwnsDepartment(actor, batch.departmentId);
     return;
@@ -91,16 +94,16 @@ export async function requireMentorOwnsBatch(
     await requireApprovedMentor(actor);
     const assignment = await prisma.mentorBatch.findUnique({
       where: { mentorId_batchId: { mentorId: actor.sub, batchId } },
-      include: { batch: { select: { departmentId: true } } },
+      include: { batch: { select: { departmentId: true, department: { select: { universityId: true } } } } },
     });
     if (!assignment) {
       throw new AuthError("You are not assigned to this batch.", 403);
     }
-    const mentor = await prisma.mentorProfile.findUnique({
+    const [mentor, user] = await Promise.all([prisma.mentorProfile.findUnique({
       where: { userId: actor.sub },
       select: { departmentId: true },
-    });
-    if (!mentor || mentor.departmentId !== assignment.batch.departmentId) {
+    }), prisma.user.findUnique({ where: { id: actor.sub }, select: { universityId: true } })]);
+    if (!mentor || !user || mentor.departmentId !== assignment.batch.departmentId || user.universityId !== assignment.batch.department.universityId) {
       throw new AuthError("You are not authorized to access batches outside your department.", 403);
     }
     return;
@@ -113,7 +116,16 @@ export async function requireStudentIsSelf(
   actor: AccessTokenPayload,
   targetStudentUserId: string
 ): Promise<void> {
-  if (actor.role === "ADMIN") return;
+  if (actor.role === "ADMIN") {
+    const [admin, student] = await Promise.all([
+      prisma.user.findUnique({ where: { id: actor.sub }, select: { universityId: true } }),
+      prisma.studentProfile.findUnique({ where: { userId: targetStudentUserId }, select: { user: { select: { universityId: true } } } }),
+    ]);
+    if (!admin || !student || admin.universityId !== student.user.universityId) {
+      throw new AuthError("Not authorized to access students outside your university.", 403);
+    }
+    return;
+  }
   if (actor.role === "STUDENT") {
     if (actor.sub !== targetStudentUserId) {
       throw new AuthError("Not authorized to access another student's information.", 403);
@@ -121,24 +133,37 @@ export async function requireStudentIsSelf(
     return;
   }
   if (actor.role === "MODERATOR") {
-    const student = await prisma.studentProfile.findUnique({ where: { userId: targetStudentUserId } });
+    const [student, moderatorUser] = await Promise.all([
+      prisma.studentProfile.findUnique({ where: { userId: targetStudentUserId }, select: { departmentId: true, user: { select: { universityId: true } } } }),
+      prisma.user.findUnique({ where: { id: actor.sub }, select: { universityId: true } }),
+    ]);
     if (!student) throw new AuthError("Student not found.", 403);
+    if (!moderatorUser || moderatorUser.universityId !== student.user.universityId) {
+      throw new AuthError("Not authorized to access students outside your university.", 403);
+    }
     await requireModeratorOwnsDepartment(actor, student.departmentId);
     return;
   }
   if (actor.role === "MENTOR") {
     await requireApprovedMentor(actor);
-    // Mentor can access if student is in any batch assigned to mentor
+    const [mentor, user] = await Promise.all([
+      prisma.mentorProfile.findUnique({ where: { userId: actor.sub }, select: { departmentId: true, department: { select: { universityId: true } } } }),
+      prisma.user.findUnique({ where: { id: actor.sub }, select: { universityId: true } }),
+    ]);
+    if (!mentor || !user || mentor.department.universityId !== user.universityId) {
+      throw new AuthError("Mentor profile is outside your university.", 403);
+    }
     const mentorBatches = await prisma.mentorBatch.findMany({
-      where: { mentorId: actor.sub },
+      where: { mentorId: actor.sub, batch: { departmentId: mentor.departmentId, department: { universityId: user.universityId } } },
       select: { batchId: true },
     });
-    const batchIds = mentorBatches.map((b) => b.batchId);
+    const batchIds = mentorBatches.map(({ batchId }) => batchId);
     const sharedBatch = await prisma.studentBatch.findFirst({
       where: {
         studentId: targetStudentUserId,
         batchId: { in: batchIds },
         leftAt: null,
+        student: { departmentId: mentor.departmentId, user: { universityId: user.universityId } },
       },
     });
     if (!sharedBatch) {
@@ -146,5 +171,7 @@ export async function requireStudentIsSelf(
     }
     return;
   }
+
+  throw new AuthError("Not authorized to access student information.", 403);
 }
 

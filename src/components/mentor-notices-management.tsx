@@ -14,6 +14,11 @@ interface Batch {
   name: string;
 }
 
+interface StudentOption {
+  userId: string;
+  user: { id: string; name: string | null; universityIdNumber: string; email: string };
+}
+
 interface Notice {
   id: string;
   title: string;
@@ -45,9 +50,31 @@ function CreateNoticeForm({ batches, onCreated, onCancel }: CreateNoticeFormProp
   const [message, setMessage] = useState("");
   const [targetType, setTargetType] = useState<"BATCH" | "STUDENT">("BATCH");
   const [targetBatchId, setTargetBatchId] = useState(batches[0]?.id ?? "");
+  const [targetStudentId, setTargetStudentId] = useState("");
+  const [studentSearch, setStudentSearch] = useState("");
+  const [studentOptions, setStudentOptions] = useState<StudentOption[]>([]);
+  const [publishAt, setPublishAt] = useState("");
   const [expiryAt, setExpiryAt] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (targetType !== "STUDENT" || !studentSearch.trim()) {
+      setStudentOptions([]);
+      return;
+    }
+    const controller = new AbortController();
+    fetch(`/api/students/search?q=${encodeURIComponent(studentSearch.trim())}&purpose=notice`, { signal: controller.signal })
+      .then(async (response) => {
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error ?? "Unable to search students.");
+        setStudentOptions(payload.students ?? []);
+      })
+      .catch((cause: unknown) => {
+        if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : "Unable to search students.");
+      });
+    return () => controller.abort();
+  }, [studentSearch, targetType]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -62,8 +89,13 @@ function CreateNoticeForm({ batches, onCreated, onCancel }: CreateNoticeFormProp
         title,
         message,
         targetType,
-        targetBatchId,
       };
+      if (targetType === "BATCH") body.targetBatchId = targetBatchId;
+      if (targetType === "STUDENT") {
+        if (!targetStudentId) throw new Error("Select a student.");
+        body.targetStudentId = targetStudentId;
+      }
+      if (publishAt) body.publishAt = new Date(publishAt).toISOString();
       if (expiryAt) body.expiryAt = new Date(expiryAt).toISOString();
 
       const res = await fetch("/api/notices", {
@@ -125,7 +157,7 @@ function CreateNoticeForm({ batches, onCreated, onCancel }: CreateNoticeFormProp
             <option value="STUDENT">Individual Student</option>
           </select>
         </div>
-        <div className="space-y-1">
+        {targetType === "BATCH" && <div className="space-y-1">
           <Label htmlFor="notice-batch">Batch *</Label>
           <select
             id="notice-batch"
@@ -139,7 +171,21 @@ function CreateNoticeForm({ batches, onCreated, onCancel }: CreateNoticeFormProp
               <option key={b.id} value={b.id}>{b.name}</option>
             ))}
           </select>
-        </div>
+        </div>}
+      </div>
+
+      {targetType === "STUDENT" && <div className="space-y-1">
+        <Label htmlFor="notice-student-search">Find student by ID or email *</Label>
+        <Input id="notice-student-search" value={studentSearch} onChange={(event) => { setStudentSearch(event.target.value); setTargetStudentId(""); }} required />
+        <select className="w-full border rounded-md px-3 py-2 text-sm bg-background" value={targetStudentId} onChange={(event) => setTargetStudentId(event.target.value)} required>
+          <option value="">Select a student</option>
+          {studentOptions.map((student) => <option key={student.userId} value={student.userId}>{student.user.name ?? student.user.universityIdNumber} · {student.user.universityIdNumber} · {student.user.email}</option>)}
+        </select>
+      </div>}
+
+      <div className="space-y-1">
+        <Label htmlFor="notice-publish">Publish at (optional)</Label>
+        <Input id="notice-publish" type="datetime-local" value={publishAt} onChange={(event) => setPublishAt(event.target.value)} />
       </div>
 
       <div className="space-y-1">
@@ -187,6 +233,7 @@ function NoticeCard({ notice, onArchive }: { notice: Notice; onArchive: (id: str
                 Archived
               </span>
             )}
+            {notice.publishAt && new Date(notice.publishAt) > new Date() && <span className="text-xs rounded-full bg-sky-100 px-2 py-0.5 text-sky-700">Scheduled</span>}
             {notice.expiryAt && new Date(notice.expiryAt) < new Date() && (
               <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-red-100 text-red-600">
                 Expired
@@ -219,6 +266,7 @@ function NoticeCard({ notice, onArchive }: { notice: Notice; onArchive: (id: str
             Expires {new Date(notice.expiryAt).toLocaleDateString()}
           </span>
         )}
+        {notice.publishAt && <span>Publishes {new Date(notice.publishAt).toLocaleString()}</span>}
       </div>
     </div>
   );

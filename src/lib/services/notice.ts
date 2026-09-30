@@ -1,41 +1,17 @@
 import { prisma } from "@/lib/prisma";
-import { AuthError, requireApprovedMentor } from "@/lib/auth/guards";
+import { AuthError, requireApprovedMentor, requireModeratorOwnsDepartment } from "@/lib/auth/guards";
 import type { AccessTokenPayload } from "@/lib/auth/jwt";
 import type { CreateNoticeInput, UpdateNoticeInput } from "@/lib/validation/notice";
 import { writeAuditLog } from "@/lib/audit";
-import { sendEmail } from "@/lib/email/sender";
-import type { NoticeTargetType } from "@prisma/client";
+import { createUserNotifications, sendTemplatedEmailToUsers } from "@/lib/services/notification";
+import type { NoticeTargetType, Prisma } from "@prisma/client";
 
 // ─── Scope helpers ───────────────────────────────────────────────────────────
 
-/**
- * Resolves the department ID an actor is scoped to.
- * Returns undefined for ADMIN (no restriction).
- * Throws for roles that don't have a profile.
- */
-async function getActorDepartmentId(actor: AccessTokenPayload): Promise<string | undefined> {
-  if (actor.role === "ADMIN") return undefined;
-
-  if (actor.role === "MODERATOR") {
-    const mod = await prisma.moderatorProfile.findUnique({ where: { userId: actor.sub } });
-    if (!mod) throw new AuthError("Moderator profile not found.", 403);
-    return mod.departmentId;
-  }
-
-  if (actor.role === "MENTOR") {
-    const mentor = await prisma.mentorProfile.findUnique({ where: { userId: actor.sub } });
-    if (!mentor) throw new AuthError("Mentor profile not found.", 403);
-    return mentor.departmentId;
-  }
-
-  // Students have a department but can't create notices — callers enforce that
-  if (actor.role === "STUDENT") {
-    const student = await prisma.studentProfile.findUnique({ where: { userId: actor.sub } });
-    if (!student) throw new AuthError("Student profile not found.", 403);
-    return student.departmentId;
-  }
-
-  throw new AuthError("Unknown role.", 403);
+async function getActorUniversityId(actor: AccessTokenPayload) {
+  const user = await prisma.user.findUnique({ where: { id: actor.sub }, select: { universityId: true } });
+  if (!user) throw new AuthError("User not found.", 404);
+  return user.universityId;
 }
 
 /**
@@ -51,11 +27,41 @@ async function validateNoticeTargeting(
   targetBatchId?: string | null,
   targetStudentId?: string | null
 ): Promise<void> {
-  if (actor.role === "ADMIN") return; // unrestricted
+  const universityId = await getActorUniversityId(actor);
+
+  if (actor.role === "ADMIN") {
+    if (targetType === "ALL") return;
+    if (targetType === "DEPARTMENT") {
+      const department = targetDepartmentId
+        ? await prisma.department.findUnique({ where: { id: targetDepartmentId }, select: { universityId: true } })
+        : null;
+      if (!department || department.universityId !== universityId) {
+        throw new AuthError("Department is outside your university.", 403);
+      }
+    }
+    if (targetType === "BATCH") {
+      const batch = targetBatchId
+        ? await prisma.batch.findUnique({ where: { id: targetBatchId }, select: { department: { select: { universityId: true } } } })
+        : null;
+      if (!batch || batch.department.universityId !== universityId) {
+        throw new AuthError("Batch is outside your university.", 403);
+      }
+    }
+    if (targetType === "STUDENT") {
+      const student = targetStudentId
+        ? await prisma.studentProfile.findUnique({ where: { userId: targetStudentId }, select: { user: { select: { universityId: true, role: true } } } })
+        : null;
+      if (!student || student.user.role !== "STUDENT" || student.user.universityId !== universityId) {
+        throw new AuthError("Student is outside your university.", 403);
+      }
+    }
+    return;
+  }
 
   if (actor.role === "MODERATOR") {
     const mod = await prisma.moderatorProfile.findUnique({ where: { userId: actor.sub } });
     if (!mod) throw new AuthError("Moderator profile not found.", 403);
+    await requireModeratorOwnsDepartment(actor, mod.departmentId);
 
     if (targetType === "ALL") {
       throw new AuthError("Moderators cannot create university-wide notices.", 403);
@@ -74,8 +80,8 @@ async function validateNoticeTargeting(
     }
     if (targetType === "STUDENT") {
       if (!targetStudentId) throw new AuthError("Student ID required for STUDENT target.", 400);
-      const student = await prisma.studentProfile.findUnique({ where: { userId: targetStudentId } });
-      if (!student || student.departmentId !== mod.departmentId) {
+      const student = await prisma.studentProfile.findUnique({ where: { userId: targetStudentId }, select: { departmentId: true, user: { select: { universityId: true, role: true } } } });
+      if (!student || student.user.role !== "STUDENT" || student.departmentId !== mod.departmentId || student.user.universityId !== universityId) {
         throw new AuthError("Student is not in your department.", 403);
       }
     }
@@ -89,10 +95,16 @@ async function validateNoticeTargeting(
       throw new AuthError("Mentors can only target batches or individual students.", 403);
     }
 
+    const mentorProfile = await prisma.mentorProfile.findUnique({ where: { userId: actor.sub }, select: { departmentId: true, department: { select: { universityId: true } } } });
+    if (!mentorProfile) throw new AuthError("Mentor profile not found.", 403);
+    if (mentorProfile.department.universityId !== universityId) throw new AuthError("Mentor profile is outside your university.", 403);
     const mentorBatches = await prisma.mentorBatch.findMany({
       where: { mentorId: actor.sub },
-      select: { batchId: true },
+      select: { batchId: true, batch: { select: { departmentId: true, department: { select: { universityId: true } } } } },
     });
+    if (mentorBatches.some((mb) => mb.batch.departmentId !== mentorProfile.departmentId || mb.batch.department.universityId !== universityId)) {
+      throw new AuthError("Assigned batch falls outside your department.", 403);
+    }
     const batchIds = new Set(mentorBatches.map((mb) => mb.batchId));
 
     if (targetType === "BATCH") {
@@ -103,7 +115,12 @@ async function validateNoticeTargeting(
     if (targetType === "STUDENT") {
       if (!targetStudentId) throw new AuthError("Student ID required for STUDENT target.", 400);
       const membership = await prisma.studentBatch.findFirst({
-        where: { studentId: targetStudentId, batchId: { in: Array.from(batchIds) }, leftAt: null },
+        where: {
+          studentId: targetStudentId,
+          batchId: { in: Array.from(batchIds) },
+          leftAt: null,
+          student: { departmentId: mentorProfile.departmentId, user: { universityId, role: "STUDENT" } },
+        },
       });
       if (!membership) {
         throw new AuthError("Student is not in any of your assigned batches.", 403);
@@ -113,6 +130,105 @@ async function validateNoticeTargeting(
   }
 
   throw new AuthError("Students cannot create notices.", 403);
+}
+
+export async function notifyNoticeRecipients(noticeId: string) {
+  try {
+    const notice = await prisma.notice.findUnique({
+      where: { id: noticeId },
+      include: { createdBy: { select: { universityId: true } } },
+    });
+    if (!notice || notice.status !== "ACTIVE") return;
+    const now = new Date();
+    if ((notice.publishAt && notice.publishAt > now) || (notice.expiryAt && notice.expiryAt <= now)) return;
+
+    let userIds: string[] = [];
+    if (notice.targetType === "STUDENT" && notice.targetStudentId) {
+      const target = await prisma.studentProfile.findFirst({
+        where: {
+          userId: notice.targetStudentId,
+          department: { universityId: notice.createdBy.universityId },
+          user: { universityId: notice.createdBy.universityId, role: "STUDENT" },
+        },
+        select: { userId: true },
+      });
+      if (target) userIds = [target.userId];
+    } else if (notice.targetType === "BATCH" && notice.targetBatchId) {
+      const batch = await prisma.batch.findFirst({
+        where: { id: notice.targetBatchId, department: { universityId: notice.createdBy.universityId } },
+        select: { departmentId: true },
+      });
+      if (!batch) return;
+      const students = await prisma.studentBatch.findMany({
+        where: {
+          batchId: notice.targetBatchId,
+          leftAt: null,
+          student: {
+            departmentId: batch.departmentId,
+            user: { universityId: notice.createdBy.universityId, role: "STUDENT" },
+          },
+        },
+        select: { studentId: true },
+      });
+      userIds = students.map(({ studentId }) => studentId);
+    } else {
+      const departmentId = notice.targetType === "DEPARTMENT" ? notice.targetDepartmentId : undefined;
+      userIds = (await prisma.user.findMany({
+        where: {
+          universityId: notice.createdBy.universityId,
+          status: "ACTIVE",
+          ...(departmentId
+            ? {
+                OR: [
+                  { studentProfile: { is: { departmentId, department: { universityId: notice.createdBy.universityId } } } },
+                  { mentorProfile: { is: { departmentId, department: { universityId: notice.createdBy.universityId } } } },
+                  { moderatorProfile: { is: { departmentId, department: { universityId: notice.createdBy.universityId } } } },
+                ],
+              }
+            : {}),
+        },
+        select: { id: true },
+      })).map(({ id }) => id);
+    }
+
+    userIds = Array.from(new Set(userIds));
+
+    await createUserNotifications(userIds, {
+      type: "NOTICE",
+      title: notice.title,
+      message: notice.message,
+      href: "/",
+      sourceKey: `notice:${notice.id}`,
+      noticeId: notice.id,
+    }, "inAppNotices");
+
+    const users = await prisma.user.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, email: true, name: true, role: true, universityId: true },
+    });
+    await sendTemplatedEmailToUsers(users, {
+      key: "NOTICE",
+      type: "NOTICE",
+      preference: "emailNotices",
+      dedupeKey: (userId) => `notice:${notice.id}:${userId}`,
+      relatedNoticeId: notice.id,
+      variables: (user) => ({ name: user.name ?? "there", title: notice.title, message: notice.message, url: `${process.env.APP_URL ?? ""}/${user.role?.toLowerCase() ?? "student"}/dashboard` }),
+    });
+  } catch {
+    // Notice persistence must not depend on inbox or email delivery.
+  }
+}
+
+export async function dispatchDueNoticeNotifications(now = new Date()) {
+  const notices = await prisma.notice.findMany({
+    where: {
+      status: "ACTIVE",
+      OR: [{ publishAt: null }, { publishAt: { lte: now } }],
+      AND: [{ OR: [{ expiryAt: null }, { expiryAt: { gt: now } }] }],
+    },
+    select: { id: true },
+  });
+  for (const notice of notices) await notifyNoticeRecipients(notice.id);
 }
 
 // ─── Service functions ────────────────────────────────────────────────────────
@@ -166,30 +282,7 @@ export async function createNotice(actor: AccessTokenPayload, input: CreateNotic
     newValue: { title: notice.title, targetType: notice.targetType },
   });
 
-  // Best-effort email notification for individual/student notice targets
-  if (input.targetType === "STUDENT" && notice.targetStudent?.user?.email) {
-    const studentEmail = notice.targetStudent.user.email;
-    try {
-      const emailResult = await sendEmail({
-        to: studentEmail,
-        subject: `New Notice: ${notice.title}`,
-        html: `<p>A new notice has been posted for you:</p><h3>${notice.title}</h3><p>${notice.message}</p>`,
-        text: `A new notice has been posted for you: ${notice.title}\n\n${notice.message}`,
-      });
-      await prisma.emailLog.create({
-        data: {
-          recipient: studentEmail,
-          relatedNoticeId: notice.id,
-          type: "NOTICE",
-          status: emailResult.success ? "SENT" : "FAILED",
-          error: emailResult.error ?? null,
-          sentAt: emailResult.success ? new Date() : null,
-        },
-      });
-    } catch {
-      // Best-effort notification should not fail the notice creation
-    }
-  }
+  await notifyNoticeRecipients(notice.id);
 
   return notice;
 }
@@ -204,9 +297,10 @@ export async function listNotices(
     // Students see notices targeted to them: ALL, their DEPARTMENT, their BATCH, or directly them
     const student = await prisma.studentProfile.findUnique({
       where: { userId: actor.sub },
-      select: { departmentId: true },
+      select: { departmentId: true, department: { select: { universityId: true } }, user: { select: { universityId: true } } },
     });
     if (!student) throw new AuthError("Student profile not found.", 404);
+    if (student.department.universityId !== student.user.universityId) throw new AuthError("Student profile is outside its university.", 403);
 
     const batchIds = (
       await prisma.studentBatch.findMany({
@@ -231,10 +325,10 @@ export async function listNotices(
           },
           {
             OR: [
-              { targetType: "ALL" },
+              { targetType: "ALL", createdBy: { universityId: student.user.universityId } },
               { targetType: "DEPARTMENT", targetDepartmentId: student.departmentId },
-              { targetType: "BATCH", targetBatchId: { in: batchIds } },
-              { targetType: "STUDENT", targetStudentId: actor.sub },
+              { targetType: "BATCH", targetBatchId: { in: batchIds }, targetBatch: { departmentId: student.departmentId, department: { universityId: student.user.universityId } } },
+              { targetType: "STUDENT", targetStudentId: actor.sub, createdBy: { universityId: student.user.universityId } },
             ],
           },
         ],
@@ -251,28 +345,34 @@ export async function listNotices(
   if (actor.role === "MENTOR") {
     await requireApprovedMentor(actor);
 
+    const mentorProfile = await prisma.mentorProfile.findUnique({ where: { userId: actor.sub }, select: { departmentId: true, department: { select: { universityId: true } } } });
+    if (!mentorProfile) throw new AuthError("Mentor profile not found.", 403);
+    if (mentorProfile.department.universityId !== await getActorUniversityId(actor)) throw new AuthError("Mentor profile is outside your university.", 403);
     const mentorBatches = await prisma.mentorBatch.findMany({
       where: { mentorId: actor.sub },
       select: { batchId: true },
     });
     const batchIds = mentorBatches.map((mb) => mb.batchId);
+    const recipientTargets: Prisma.NoticeWhereInput[] = [
+      { targetType: "ALL", createdBy: { universityId: mentorProfile.department.universityId } },
+      { targetType: "DEPARTMENT", targetDepartmentId: mentorProfile.departmentId },
+      { targetType: "BATCH", targetBatchId: { in: batchIds }, targetBatch: { department: { universityId: mentorProfile.department.universityId } } },
+      { targetType: "STUDENT", targetStudent: { departmentId: mentorProfile.departmentId, studentBatches: { some: { batchId: { in: batchIds }, leftAt: null } } } },
+    ];
 
-    // Mentors see their own notices + notices targeting their batches
-    const where: Record<string, unknown> = {
+    const where: Prisma.NoticeWhereInput = {
       status: opts.status ?? "ACTIVE",
       OR: [
         { createdById: actor.sub },
-        { targetType: "BATCH", targetBatchId: { in: batchIds } },
+        { AND: [{ OR: recipientTargets }, { OR: [{ publishAt: null }, { publishAt: { lte: now } }] }, { OR: [{ expiryAt: null }, { expiryAt: { gt: now } }] }] },
       ],
     };
-    if (opts.batchId) {
-      (where as { targetBatchId?: string }).targetBatchId = opts.batchId;
-      delete (where as { OR?: unknown }).OR;
-      where.createdById = actor.sub;
-    }
 
     return prisma.notice.findMany({
-      where,
+      where: {
+        ...where,
+        ...(opts.batchId ? { targetBatchId: opts.batchId } : {}),
+      },
       orderBy: { createdAt: "desc" },
       include: {
         createdBy: { select: { universityIdNumber: true, email: true, role: true } },
@@ -285,17 +385,25 @@ export async function listNotices(
   if (actor.role === "MODERATOR") {
     const mod = await prisma.moderatorProfile.findUnique({ where: { userId: actor.sub } });
     if (!mod) throw new AuthError("Moderator profile not found.", 403);
+    await requireModeratorOwnsDepartment(actor, mod.departmentId);
+    const moderatorUser = await prisma.user.findUnique({ where: { id: actor.sub }, select: { universityId: true } });
+    if (!moderatorUser) throw new AuthError("Moderator not found.", 404);
 
     return prisma.notice.findMany({
       where: {
         status: opts.status ?? "ACTIVE",
         OR: [
           { createdById: actor.sub },
-          { targetType: "DEPARTMENT", targetDepartmentId: mod.departmentId },
-          {
-            targetType: "BATCH",
-            targetBatch: { departmentId: mod.departmentId },
-          },
+          { AND: [
+            { OR: [
+              { targetType: "ALL", createdBy: { universityId: moderatorUser.universityId } },
+              { targetType: "DEPARTMENT", targetDepartmentId: mod.departmentId },
+              { targetType: "BATCH", targetBatch: { departmentId: mod.departmentId } },
+              { targetType: "STUDENT", targetStudent: { departmentId: mod.departmentId } },
+            ] },
+            { OR: [{ publishAt: null }, { publishAt: { lte: now } }] },
+            { OR: [{ expiryAt: null }, { expiryAt: { gt: now } }] },
+          ] },
         ],
       },
       orderBy: { createdAt: "desc" },
@@ -308,12 +416,22 @@ export async function listNotices(
     });
   }
 
-  // ADMIN: full visibility
+  const universityId = await getActorUniversityId(actor);
   return prisma.notice.findMany({
     where: {
       status: opts.status,
-      ...(opts.batchId ? { targetBatchId: opts.batchId } : {}),
-      ...(opts.departmentId ? { targetDepartmentId: opts.departmentId } : {}),
+      AND: [
+        {
+          OR: [
+            { targetType: "ALL", createdBy: { universityId } },
+            { targetType: "DEPARTMENT", targetDepartment: { universityId } },
+            { targetType: "BATCH", targetBatch: { department: { universityId } } },
+            { targetType: "STUDENT", targetStudent: { user: { universityId } } },
+          ],
+        },
+        ...(opts.batchId ? [{ targetBatchId: opts.batchId }] : []),
+        ...(opts.departmentId ? [{ targetDepartmentId: opts.departmentId }] : []),
+      ],
     },
     orderBy: { createdAt: "desc" },
     include: {
@@ -326,82 +444,17 @@ export async function listNotices(
 }
 
 export async function getNotice(actor: AccessTokenPayload, noticeId: string) {
-  const notice = await prisma.notice.findUnique({
-    where: { id: noticeId },
-    include: {
-      createdBy: { select: { universityIdNumber: true, email: true, role: true } },
-      targetBatch: { select: { id: true, name: true } },
-      targetDepartment: { select: { id: true, name: true, code: true } },
-      targetStudent: { select: { user: { select: { universityIdNumber: true, email: true } } } },
-    },
-  });
-
+  const notices = await listNotices(actor, { status: "ACTIVE" });
+  const notice = notices.find((item) => item.id === noticeId);
   if (!notice) throw new AuthError("Notice not found.", 404);
-
-  // Re-use listNotices scoping logic by checking if this notice appears in the authorized list
-  // For performance we do a direct targeted check
-  if (actor.role === "ADMIN") return notice;
-
-  if (actor.role === "STUDENT") {
-    const student = await prisma.studentProfile.findUnique({
-      where: { userId: actor.sub },
-      select: { departmentId: true },
-    });
-    if (!student) throw new AuthError("Student profile not found.", 403);
-
-    const batchIds = (
-      await prisma.studentBatch.findMany({
-        where: { studentId: actor.sub, leftAt: null },
-        select: { batchId: true },
-      })
-    ).map((sb) => sb.batchId);
-
-    const canView =
-      notice.targetType === "ALL" ||
-      (notice.targetType === "DEPARTMENT" && notice.targetDepartmentId === student.departmentId) ||
-      (notice.targetType === "BATCH" && notice.targetBatchId && batchIds.includes(notice.targetBatchId)) ||
-      (notice.targetType === "STUDENT" && notice.targetStudentId === actor.sub);
-
-    if (!canView) throw new AuthError("Notice not found.", 404);
-    return notice;
-  }
-
-  if (actor.role === "MODERATOR") {
-    const mod = await prisma.moderatorProfile.findUnique({ where: { userId: actor.sub } });
-    if (!mod) throw new AuthError("Moderator profile not found.", 403);
-
-    if (notice.createdById === actor.sub) return notice;
-
-    if (notice.targetType === "DEPARTMENT" && notice.targetDepartmentId === mod.departmentId) return notice;
-
-    if (notice.targetType === "BATCH" && notice.targetBatchId) {
-      const batch = await prisma.batch.findUnique({ where: { id: notice.targetBatchId } });
-      if (batch && batch.departmentId === mod.departmentId) return notice;
-    }
-
-    throw new AuthError("Notice not found.", 404);
-  }
-
-  if (actor.role === "MENTOR") {
-    await requireApprovedMentor(actor);
-    if (notice.createdById === actor.sub) return notice;
-
-    if (notice.targetType === "BATCH" && notice.targetBatchId) {
-      const assignment = await prisma.mentorBatch.findUnique({
-        where: { mentorId_batchId: { mentorId: actor.sub, batchId: notice.targetBatchId } },
-      });
-      if (assignment) return notice;
-    }
-
-    throw new AuthError("Notice not found.", 404);
-  }
-
-  throw new AuthError("Not authorized.", 403);
+  return notice;
 }
 
 export async function updateNotice(actor: AccessTokenPayload, noticeId: string, input: UpdateNoticeInput) {
   const notice = await prisma.notice.findUnique({ where: { id: noticeId } });
   if (!notice) throw new AuthError("Notice not found.", 404);
+
+  await getNotice(actor, noticeId);
 
   // Only creator or admin can update
   if (actor.role !== "ADMIN" && notice.createdById !== actor.sub) {
@@ -420,6 +473,11 @@ export async function updateNotice(actor: AccessTokenPayload, noticeId: string, 
 
   if (input.targetType || input.targetBatchId || input.targetDepartmentId || input.targetStudentId) {
     await validateNoticeTargeting(actor, newTargetType, newDeptId, newBatchId, newStudentId);
+  }
+  const publishAt = input.publishAt !== undefined ? input.publishAt : notice.publishAt?.toISOString();
+  const expiryAt = input.expiryAt !== undefined ? input.expiryAt : notice.expiryAt?.toISOString();
+  if (publishAt && expiryAt && new Date(expiryAt) <= new Date(publishAt)) {
+    throw new AuthError("Expiry date must be after publish date.", 400);
   }
 
   const updated = await prisma.notice.update({
@@ -451,12 +509,16 @@ export async function updateNotice(actor: AccessTokenPayload, noticeId: string, 
     newValue: { title: updated.title },
   });
 
+  await notifyNoticeRecipients(noticeId);
+
   return updated;
 }
 
 export async function archiveNotice(actor: AccessTokenPayload, noticeId: string) {
   const notice = await prisma.notice.findUnique({ where: { id: noticeId } });
   if (!notice) throw new AuthError("Notice not found.", 404);
+
+  await getNotice(actor, noticeId);
 
   // Only creator or admin can archive
   if (actor.role !== "ADMIN" && notice.createdById !== actor.sub) {
@@ -494,6 +556,3 @@ export async function archiveNotice(actor: AccessTokenPayload, noticeId: string)
 
   return archived;
 }
-
-// suppress unused import warning
-void getActorDepartmentId;

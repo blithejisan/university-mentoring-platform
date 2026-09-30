@@ -8,6 +8,9 @@ import { AdminNoticesManagement } from "@/components/admin-notices-management";
 import { DepartmentRemarksOversight } from "@/components/department-remarks-oversight";
 import { DepartmentAttendanceOverviewCard } from "@/components/department-attendance-overview";
 import { SessionMonitoringDashboard } from "@/components/session-monitoring-dashboard";
+import { BatchPerformanceReport } from "@/components/batch-performance-report";
+import { ScopedUpcomingSessions } from "@/components/scoped-upcoming-sessions";
+import { EmailTemplateSettings } from "@/components/email-template-settings";
 
 export default async function AdminDashboardPage() {
   const session = await getCurrentUser();
@@ -47,7 +50,9 @@ export default async function AdminDashboardPage() {
       </div>
 
       <SessionMonitoringDashboard role="ADMIN" />
+      <ScopedUpcomingSessions role="ADMIN" />
       <DepartmentAttendanceOverviewCard departments={departments} />
+      <BatchPerformanceReport role="ADMIN" />
 
       {/* Quick Action Navigation Cards */}
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
@@ -108,6 +113,10 @@ export default async function AdminDashboardPage() {
       <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
         <AdminNoticesManagement role="ADMIN" />
       </div>
+
+      <section className="border-t border-slate-200 pt-6">
+        <EmailTemplateSettings />
+      </section>
 
       {/* Department Remarks Oversight */}
       <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">

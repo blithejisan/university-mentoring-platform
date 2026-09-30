@@ -87,6 +87,44 @@ async function main() {
     console.log(`Moderator account ${moderatorId} already exists, skipping.`);
   }
 
+  const mentorId = process.env.SEED_MENTOR_ID ?? "mentor-ads-260";
+  const mentorEmail = process.env.SEED_MENTOR_EMAIL ?? "mentor-ads-260@example.edu";
+  const mentorPassword = process.env.SEED_MENTOR_PASSWORD ?? "ChangeMe123!";
+  const mentorName = process.env.SEED_MENTOR_NAME ?? "ADS 260 Mentor";
+  const now = new Date();
+
+  await prisma.user.upsert({
+    where: { universityIdNumber: mentorId },
+    update: {
+      universityId: university.id,
+      role: "MENTOR",
+      name: mentorName,
+      email: mentorEmail,
+      status: "ACTIVE",
+      emailVerifiedAt: now,
+      mentorProfile: {
+        upsert: {
+          create: { departmentId: ads.id, approvalStatus: "APPROVED", approvedAt: now },
+          update: { departmentId: ads.id, approvalStatus: "APPROVED", approvedAt: now },
+        },
+      },
+    },
+    create: {
+      universityId: university.id,
+      role: "MENTOR",
+      universityIdNumber: mentorId,
+      name: mentorName,
+      email: mentorEmail,
+      passwordHash: await bcrypt.hash(mentorPassword, 12),
+      status: "ACTIVE",
+      emailVerifiedAt: now,
+      mentorProfile: {
+        create: { departmentId: ads.id, approvalStatus: "APPROVED", approvedAt: now },
+      },
+    },
+  });
+  console.log(`Seeded approved ADS mentor account: ${mentorId} (${mentorEmail}).`);
+
   await prisma.emailTemplate.upsert({
     where: { key: "EMAIL_VERIFICATION" },
     update: {},

@@ -131,10 +131,10 @@ async function requireBatchManager(actor: AccessTokenPayload, batchId: string, d
   await requireModeratorOwnsDepartment(actor, departmentId);
 }
 
-function listDepartmentBatches(departmentId?: string, mentorId?: string) {
+function listDepartmentBatches(departmentId?: string, mentorId?: string, batchIds?: string[]) {
   return prisma.batch.findMany({
-    ...(departmentId || mentorId
-      ? { where: { ...(departmentId ? { departmentId } : {}), ...(mentorId ? { mentorBatches: { some: { mentorId } } } : {}) } }
+    ...(departmentId || mentorId || batchIds
+      ? { where: { ...(departmentId ? { departmentId } : {}), ...(mentorId ? { mentorBatches: { some: { mentorId } } } : {}), ...(batchIds ? { id: { in: batchIds } } : {}) } }
       : {}),
     orderBy: { createdAt: "desc" },
     include: {
@@ -150,27 +150,52 @@ function listDepartmentBatches(departmentId?: string, mentorId?: string) {
 
 export async function listBatches(actor: AccessTokenPayload) {
   if (actor.role === "ADMIN") {
-    return listDepartmentBatches();
+    const admin = await prisma.user.findUnique({ where: { id: actor.sub }, select: { universityId: true } });
+    if (!admin) throw new AuthError("Admin account not found.", 404);
+    return prisma.batch.findMany({
+      where: { department: { universityId: admin.universityId } },
+      orderBy: { createdAt: "desc" },
+      include: {
+        department: true,
+        mentorBatches: { where: { mentor: { approvalStatus: "APPROVED" } }, select: { mentor: { select: { user: { select: { name: true, universityIdNumber: true } } } } } },
+        _count: { select: { studentBatches: true, mentorBatches: true } },
+      },
+    });
   }
 
   if (actor.role === "MODERATOR") {
     const moderator = await prisma.moderatorProfile.findUnique({ where: { userId: actor.sub } });
     if (!moderator) throw new AuthError("Moderator profile not found.", 403);
 
+    await requireModeratorOwnsDepartment(actor, moderator.departmentId);
     return listDepartmentBatches(moderator.departmentId);
   }
 
   if (actor.role === "MENTOR") {
     await requireApprovedMentor(actor);
-    const mentor = await prisma.mentorProfile.findUnique({ where: { userId: actor.sub } });
+    const [mentor, mentorUser] = await Promise.all([
+      prisma.mentorProfile.findUnique({ where: { userId: actor.sub }, include: { department: { select: { universityId: true } } } }),
+      prisma.user.findUnique({ where: { id: actor.sub }, select: { universityId: true } }),
+    ]);
     if (!mentor) throw new AuthError("Mentor profile not found.", 403);
+    if (!mentorUser || mentor.department.universityId !== mentorUser.universityId) throw new AuthError("Mentor profile is outside your university.", 403);
     return listDepartmentBatches(mentor.departmentId, actor.sub);
   }
 
   if (actor.role === "STUDENT") {
-    const student = await prisma.studentProfile.findUnique({ where: { userId: actor.sub } });
+    const student = await prisma.studentProfile.findUnique({
+      where: { userId: actor.sub },
+      select: { departmentId: true, department: { select: { universityId: true } }, user: { select: { universityId: true, status: true } } },
+    });
     if (!student) throw new AuthError("Student profile not found.", 403);
-    return listDepartmentBatches(student.departmentId);
+    if (student.user.status !== "ACTIVE" || student.department.universityId !== student.user.universityId) {
+      throw new AuthError("Student profile is outside your university.", 403);
+    }
+    const memberships = await prisma.studentBatch.findMany({
+      where: { studentId: actor.sub, leftAt: null, batch: { departmentId: student.departmentId, department: { universityId: student.user.universityId } } },
+      select: { batchId: true },
+    });
+    return listDepartmentBatches(student.departmentId, undefined, memberships.map(({ batchId }) => batchId));
   }
 
   throw new AuthError("Unauthorized role.", 403);
@@ -493,30 +518,47 @@ export async function removeMentorFromBatch(actor: AccessTokenPayload, batchId: 
   return deleted;
 }
 
-export async function searchStudents(actor: AccessTokenPayload, query: string) {
+export async function searchStudents(
+  actor: AccessTokenPayload,
+  query: string,
+  options: { includeNonActive?: boolean } = {}
+) {
   if (actor.role !== "ADMIN" && actor.role !== "MODERATOR" && actor.role !== "MENTOR") {
     throw new AuthError("Not authorized to search students.", 403);
   }
 
   let departmentIdFilter: string | undefined;
+  let universityIdFilter: string | undefined;
   let allowedStudentUserIds: string[] | undefined;
 
-  if (actor.role === "MODERATOR") {
+  if (actor.role === "ADMIN") {
+    const admin = await prisma.user.findUnique({ where: { id: actor.sub }, select: { universityId: true } });
+    if (!admin) throw new AuthError("Admin account not found.", 404);
+    universityIdFilter = admin.universityId;
+  } else if (actor.role === "MODERATOR") {
     const moderator = await prisma.moderatorProfile.findUnique({ where: { userId: actor.sub } });
     if (!moderator) throw new AuthError("Moderator profile not found.", 403);
     departmentIdFilter = moderator.departmentId;
+    const owner = await prisma.user.findUnique({ where: { id: actor.sub }, select: { universityId: true } });
+    const department = await prisma.department.findUnique({ where: { id: moderator.departmentId }, select: { universityId: true } });
+    if (!owner || !department || owner.universityId !== department.universityId) throw new AuthError("Moderator department is outside your university.", 403);
   } else if (actor.role === "MENTOR") {
     await requireApprovedMentor(actor);
     const mentorBatches = await prisma.mentorBatch.findMany({
       where: { mentorId: actor.sub },
-      select: { batchId: true, batch: { select: { departmentId: true } } },
+      select: { batchId: true, batch: { select: { departmentId: true, department: { select: { universityId: true } } } } },
     });
     const batchIds = mentorBatches.map((mb) => mb.batchId);
-    const mentor = await prisma.mentorProfile.findUnique({ where: { userId: actor.sub }, select: { departmentId: true } });
+    const [mentor, mentorUser] = await Promise.all([
+      prisma.mentorProfile.findUnique({ where: { userId: actor.sub }, select: { departmentId: true, department: { select: { universityId: true } } } }),
+      prisma.user.findUnique({ where: { id: actor.sub }, select: { universityId: true } }),
+    ]);
     if (!mentor) throw new AuthError("Mentor profile not found.", 403);
-    if (mentorBatches.some((mb) => mb.batch.departmentId !== mentor.departmentId)) {
+    if (!mentorUser || mentor.department.universityId !== mentorUser.universityId || mentorBatches.some((mb) => mb.batch.departmentId !== mentor.departmentId || mb.batch.department.universityId !== mentorUser.universityId)) {
       throw new AuthError("Assigned batch falls outside your department.", 403);
     }
+    departmentIdFilter = mentor.departmentId;
+    universityIdFilter = mentorUser.universityId;
     const studentBatches = await prisma.studentBatch.findMany({
       where: { batchId: { in: batchIds }, leftAt: null },
       select: { studentId: true },
@@ -529,6 +571,9 @@ export async function searchStudents(actor: AccessTokenPayload, query: string) {
       ...(departmentIdFilter ? { departmentId: departmentIdFilter } : {}),
       ...(allowedStudentUserIds ? { userId: { in: allowedStudentUserIds } } : {}),
       user: {
+        ...(universityIdFilter ? { universityId: universityIdFilter } : {}),
+        role: "STUDENT",
+        ...(!options.includeNonActive ? { status: "ACTIVE" } : {}),
         OR: [
           { universityIdNumber: { contains: query, mode: "insensitive" } },
           { email: { contains: query, mode: "insensitive" } },
