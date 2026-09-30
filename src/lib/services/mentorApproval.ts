@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { writeAuditLog } from "@/lib/audit";
 import { sendEmail } from "@/lib/email/sender";
 import { renderEmailTemplate } from "@/lib/email/templates";
+import { getAppUrl } from "@/lib/app-url";
 import { AuthError } from "@/lib/auth/guards";
 import type { AccessTokenPayload } from "@/lib/auth/jwt";
 
@@ -123,14 +124,13 @@ export async function approveMentor(actor: AccessTokenPayload, mentorUserId: str
     newValue: { approvalStatus: "APPROVED", approvedBy: actor.sub, approvedAt: now.toISOString() },
   });
 
-  const appUrl = process.env.APP_URL ?? "http://localhost:3000";
   const { subject, html, text } = await renderEmailTemplate("MENTOR_APPROVED", {
     name: mentor.user.name ?? "",
     studentId: mentor.user.universityIdNumber,
     universityName: mentor.department.university.name,
     department: mentor.department.name,
     decisionDate: now.toLocaleDateString(),
-    loginUrl: `${appUrl}/login`,
+    loginUrl: getAppUrl("/login"),
   });
 
   const result = await sendEmail({ to: mentor.user.email, subject, html, text });

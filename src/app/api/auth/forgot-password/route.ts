@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { generateRawToken, hashToken, resetTokenExpiry } from "@/lib/auth/tokens";
 import { sendEmail } from "@/lib/email/sender";
 import { renderEmailTemplate } from "@/lib/email/templates";
+import { getAppUrl } from "@/lib/app-url";
 import { forgotPasswordSchema } from "@/lib/validation/auth";
 
 export async function POST(request: NextRequest) {
@@ -43,11 +44,10 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  const appUrl = process.env.APP_URL ?? "http://localhost:3000";
   const { subject, html, text } = await renderEmailTemplate("PASSWORD_RESET", {
     name: user.name ?? user.universityIdNumber,
     universityName: user.university.name,
-    resetUrl: `${appUrl}/reset-password/${rawToken}`,
+    resetUrl: getAppUrl(`/reset-password/${rawToken}`),
   });
 
   const emailResult = await sendEmail({ to: user.email, subject, html, text });

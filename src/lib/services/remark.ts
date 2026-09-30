@@ -4,6 +4,7 @@ import type { AccessTokenPayload } from "@/lib/auth/jwt";
 import type { CreateRemarkInput, UpdateRemarkStatusInput } from "@/lib/validation/remark";
 import { writeAuditLog } from "@/lib/audit";
 import { createUserNotifications, sendTemplatedEmailToUsers } from "@/lib/services/notification";
+import { getAppUrl } from "@/lib/app-url";
 import type { RemarkStatus } from "@prisma/client";
 
 export async function createRemark(actor: AccessTokenPayload, input: CreateRemarkInput) {
@@ -77,7 +78,7 @@ export async function createRemark(actor: AccessTokenPayload, input: CreateRemar
       type: "REMARK",
       preference: "emailRemarks",
       dedupeKey: (userId) => `remark:${remark.id}:created:${userId}`,
-      variables: () => ({ remarkType: remark.type, message: remark.description, url: `${process.env.APP_URL ?? ""}/student/dashboard` }),
+      variables: () => ({ remarkType: remark.type, message: remark.description, url: getAppUrl("/student/dashboard") }),
     });
   }
 
@@ -300,7 +301,7 @@ export async function updateRemarkStatus(
       variables: () => ({
         remarkType: updated.type,
         message: `Your remark status is ${updated.status}.${updated.resolutionNote ? ` Resolution: ${updated.resolutionNote}` : ""}`,
-        url: `${process.env.APP_URL ?? ""}/student/dashboard`,
+        url: getAppUrl("/student/dashboard"),
       }),
     });
   }

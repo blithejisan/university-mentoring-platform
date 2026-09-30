@@ -5,6 +5,7 @@ import type { CreateSessionInput, UpdateSessionInput, SaveAttendanceInput, EditF
 import type { Prisma } from "@prisma/client";
 import { writeAuditLog } from "@/lib/audit";
 import { createUserNotifications, sendTemplatedEmailToUsers } from "@/lib/services/notification";
+import { getAppUrl } from "@/lib/app-url";
 
 function sessionMembershipEligibility(session: { date: Date; startTime: Date | null }): Prisma.StudentBatchWhereInput {
   if (session.startTime) {
@@ -122,7 +123,7 @@ export async function dispatchSessionReminders(now = new Date()) {
         preference: "emailSessionReminders",
         dedupeKey: (userId) => `session-reminder:${session.id}:${startsAt.toISOString()}:${userId}`,
         relatedSessionId: session.id,
-        variables: (user) => ({ name: user.name ?? "there", topic: session.topic || session.batch.name, details, url: `${process.env.APP_URL ?? ""}${roleDashboard(user.role ?? "STUDENT")}` }),
+        variables: (user) => ({ name: user.name ?? "there", topic: session.topic || session.batch.name, details, url: getAppUrl(roleDashboard(user.role ?? "STUDENT")) }),
       });
     } catch {
       // Reminder delivery is best-effort and must not block session operations.

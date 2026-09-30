@@ -4,6 +4,7 @@ import type { AccessTokenPayload } from "@/lib/auth/jwt";
 import type { CreateNoticeInput, UpdateNoticeInput } from "@/lib/validation/notice";
 import { writeAuditLog } from "@/lib/audit";
 import { createUserNotifications, sendTemplatedEmailToUsers } from "@/lib/services/notification";
+import { getAppUrl } from "@/lib/app-url";
 import type { NoticeTargetType, Prisma } from "@prisma/client";
 
 // ─── Scope helpers ───────────────────────────────────────────────────────────
@@ -212,7 +213,7 @@ export async function notifyNoticeRecipients(noticeId: string) {
       preference: "emailNotices",
       dedupeKey: (userId) => `notice:${notice.id}:${userId}`,
       relatedNoticeId: notice.id,
-      variables: (user) => ({ name: user.name ?? "there", title: notice.title, message: notice.message, url: `${process.env.APP_URL ?? ""}/${user.role?.toLowerCase() ?? "student"}/dashboard` }),
+      variables: (user) => ({ name: user.name ?? "there", title: notice.title, message: notice.message, url: getAppUrl(`/${user.role?.toLowerCase() ?? "student"}/dashboard`) }),
     });
   } catch {
     // Notice persistence must not depend on inbox or email delivery.
