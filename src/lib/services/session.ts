@@ -53,8 +53,7 @@ async function notifySessionParticipants(sessionId: string, message: string, eve
       prisma.studentBatch.findMany({
         where: {
           batchId: session.batchId,
-          joinedAt: { lte: session.date },
-          OR: [{ leftAt: null }, { leftAt: { gte: session.date } }],
+          ...sessionMembershipEligibility(session),
           student: { departmentId: session.batch.departmentId, user: { status: "ACTIVE", universityId: session.batch.department.universityId } },
         },
         select: { studentId: true },
@@ -94,8 +93,7 @@ export async function dispatchSessionReminders(now = new Date()) {
         prisma.studentBatch.findMany({
           where: {
             batchId: session.batchId,
-            joinedAt: { lte: session.date },
-            OR: [{ leftAt: null }, { leftAt: { gte: session.date } }],
+            ...sessionMembershipEligibility(session),
             student: { departmentId: session.batch.departmentId, user: { status: "ACTIVE", universityId: session.batch.department.universityId } },
           },
           select: { student: { select: { user: { select: { id: true, email: true, name: true, role: true, universityId: true } } } } },
