@@ -330,13 +330,7 @@ export async function getBatchAttendanceReport(
 
   for (const sb of scopedStudentBatches) {
     const studentId = sb.studentId;
-    const joinedAt = sb.joinedAt;
-    const leftAt = sb.leftAt;
-
-    // Applicable completed sessions for this student
-    const applicable = completedSessions.filter(
-      (s) => s.date >= joinedAt && (!leftAt || s.date <= leftAt)
-    );
+    const applicable = completedSessions;
 
     let present = 0;
     let absent = 0;
@@ -345,6 +339,7 @@ export async function getBatchAttendanceReport(
 
     for (const s of applicable) {
       const record = s.attendanceRecords.find((r) => r.studentId === studentId);
+      // A completed session without a record counts as an absence.
       const st = record ? record.status : "ABSENT";
       if (st === "PRESENT") present++;
       else if (st === "ABSENT") absent++;
