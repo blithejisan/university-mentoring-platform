@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ModalPortal } from "@/components/ui/modal-portal";
 import { SessionList } from "@/components/session-management";
 import { BatchAttendanceReportView } from "@/components/batch-attendance-report";
 import { PerformanceEntryModal } from "@/components/performance-entry-modal";
@@ -938,9 +939,9 @@ export function BatchDetailsView({ batchId, userRole }: Props) {
       </div>
 
       {showEditBatchModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md space-y-4 rounded-lg border bg-background p-6 shadow-xl">
-            <h2 className="text-lg font-semibold">Edit batch</h2>
+        <ModalPortal labelledBy="edit-batch-title">
+          <div className="relative z-50 w-full max-w-lg space-y-4 rounded-xl border border-slate-800 bg-slate-900/95 p-6 text-slate-100 shadow-2xl">
+            <h2 id="edit-batch-title" className="text-lg font-semibold">Edit batch</h2>
             <form onSubmit={handleUpdateBatch} className="space-y-4">
               <div className="space-y-1">
                 <Label htmlFor="edit-batch-name">Batch name</Label>
@@ -966,7 +967,7 @@ export function BatchDetailsView({ batchId, userRole }: Props) {
               </div>
             </form>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
       {showPerfModal && (

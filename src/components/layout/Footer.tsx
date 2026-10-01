@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
 import { ExternalLink, Phone, MapPin } from 'lucide-react';
+import { ModalPortal } from '@/components/ui/modal-portal';
 
 export function Footer() {
   const [activeModal, setActiveModal] = useState<string | null>(null);
@@ -119,10 +120,10 @@ export function Footer() {
 
       {/* Modal Popup */}
       {activeModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
-          <div className="max-w-lg w-full space-y-5 rounded-3xl border border-border bg-card p-8 text-card-foreground shadow-2xl">
+        <ModalPortal labelledBy="footer-modal-title">
+          <div className="relative z-50 w-full max-w-lg space-y-5 rounded-xl border border-slate-800 bg-slate-900/95 p-6 text-slate-100 shadow-2xl">
             <div className="flex justify-between items-center border-b border-slate-800 pb-4">
-              <h3 className="text-xl font-bold text-primary capitalize">
+              <h3 id="footer-modal-title" className="text-xl font-bold text-primary capitalize">
                 {activeModal === 'privacy' && '🔒 Privacy Policy'}
                 {activeModal === 'terms' && '📜 Terms of Service'}
                 {activeModal === 'support' && '💬 Support'}
@@ -164,7 +165,7 @@ export function Footer() {
               </button>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
     </footer>
   );

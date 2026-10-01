@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { ModalPortal } from "@/components/ui/modal-portal";
 import {
   Card,
   CardContent,
@@ -125,13 +126,8 @@ export function EvaluateMentorModal({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="eval-modal-title"
-    >
-      <Card className="w-full max-w-lg shadow-2xl border border-border bg-card animate-in fade-in zoom-in-95 duration-200">
+    <ModalPortal labelledBy="eval-modal-title">
+      <Card className="relative z-50 w-full max-w-lg rounded-xl border border-slate-800 bg-slate-900/95 p-6 text-slate-100 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
         <CardHeader className="border-b pb-4">
           <div className="flex items-start justify-between">
             <div>
@@ -241,6 +237,6 @@ export function EvaluateMentorModal({
           </form>
         </CardContent>
       </Card>
-    </div>
+    </ModalPortal>
   );
 }

@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ModalPortal } from "@/components/ui/modal-portal";
 
 interface Session {
   id: string;
@@ -245,9 +246,9 @@ export function SessionList({ batchId, userRole }: Props) {
 
       {/* Create Session Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-background border rounded-lg max-w-md w-full p-6 shadow-xl space-y-4">
-            <h3 className="text-lg font-bold">Schedule Mentoring Session</h3>
+        <ModalPortal labelledBy="create-session-title">
+          <div className="relative z-50 w-full max-w-lg space-y-4 rounded-xl border border-slate-800 bg-slate-900/95 p-6 text-slate-100 shadow-2xl">
+            <h3 id="create-session-title" className="text-lg font-bold">Schedule Mentoring Session</h3>
             <form onSubmit={handleCreateSession} className="space-y-4">
               <div className="space-y-1">
                 <Label>Topic</Label>
@@ -309,7 +310,7 @@ export function SessionList({ batchId, userRole }: Props) {
               </div>
             </form>
           </div>
-        </div>
+        </ModalPortal>
       )}
     </div>
   );

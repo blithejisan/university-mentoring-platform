@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ModalPortal } from "@/components/ui/modal-portal";
 
 type AttendanceStatus = "PRESENT" | "ABSENT" | "LATE" | "EXCUSED";
 
@@ -437,9 +438,9 @@ export function AttendanceSheet({ sessionId, userRole }: Props) {
 
       {/* Correction Modal for Finalized Record */}
       {editingRecord && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-background border rounded-lg max-w-md w-full p-6 shadow-xl space-y-4">
-            <h3 className="text-lg font-bold">Correct Finalized Attendance</h3>
+        <ModalPortal labelledBy="attendance-correction-title">
+          <div className="relative z-50 w-full max-w-lg space-y-4 rounded-xl border border-slate-800 bg-slate-900/95 p-6 text-slate-100 shadow-2xl">
+            <h3 id="attendance-correction-title" className="text-lg font-bold">Correct Finalized Attendance</h3>
             <p className="text-xs text-muted-foreground">
               Editing attendance for student <span className="font-semibold text-foreground">{editingRecord.student.user.universityIdNumber}</span>. Any change will be permanently logged in the audit history.
             </p>
@@ -479,15 +480,15 @@ export function AttendanceSheet({ sessionId, userRole }: Props) {
               </div>
             </form>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
       {/* Edit History Popup */}
       {viewingEdits && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-background border rounded-lg max-w-md w-full p-6 shadow-xl space-y-4">
+        <ModalPortal labelledBy="attendance-history-title">
+          <div className="relative z-50 w-full max-w-lg space-y-4 rounded-xl border border-slate-800 bg-slate-900/95 p-6 text-slate-100 shadow-2xl">
             <div className="flex items-center justify-between border-b pb-2">
-              <h3 className="text-lg font-bold">Correction Log History</h3>
+              <h3 id="attendance-history-title" className="text-lg font-bold">Correction Log History</h3>
               <Button size="sm" variant="ghost" onClick={() => setViewingEdits(null)}>
                 ✕
               </Button>
@@ -507,7 +508,7 @@ export function AttendanceSheet({ sessionId, userRole }: Props) {
               ))}
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
     </div>
   );

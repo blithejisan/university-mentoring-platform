@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ModalPortal } from "@/components/ui/modal-portal";
 
 interface Props {
   batchId: string;
@@ -71,9 +72,9 @@ export function PerformanceEntryModal({ batchId, students, onSuccess, onClose }:
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-background border rounded-lg max-w-md w-full p-6 shadow-xl space-y-4">
-        <h3 className="text-lg font-bold">Record Student Performance</h3>
+    <ModalPortal labelledBy="performance-modal-title">
+      <div className="relative z-50 w-full max-w-lg space-y-4 rounded-xl border border-slate-800 bg-slate-900/95 p-6 text-slate-100 shadow-2xl">
+        <h3 id="performance-modal-title" className="text-lg font-bold">Record Student Performance</h3>
 
         {error && <p className="text-xs text-red-500">{error}</p>}
 
@@ -167,6 +168,6 @@ export function PerformanceEntryModal({ batchId, students, onSuccess, onClose }:
           </div>
         </form>
       </div>
-    </div>
+    </ModalPortal>
   );
 }
