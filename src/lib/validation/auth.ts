@@ -57,6 +57,25 @@ export const resetPasswordSchema = z.object({
   password,
 });
 
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Enter your current password."),
+    newPassword: z
+      .string()
+      .min(8, "New password must be at least 8 characters.")
+      .max(72, "New password must be at most 72 characters.")
+      .regex(/[a-z]/, "New password must include a lowercase letter.")
+      .regex(/[A-Z]/, "New password must include an uppercase letter.")
+      .regex(/[0-9]/, "New password must include a number.")
+      .regex(/[^A-Za-z0-9]/, "New password must include a special character."),
+    confirmPassword: z.string().min(1, "Confirm your new password."),
+  })
+  .strict()
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "New passwords do not match.",
+    path: ["confirmPassword"],
+  });
+
 export const verifyEmailSchema = z.object({
   token: z.string().min(1),
 });

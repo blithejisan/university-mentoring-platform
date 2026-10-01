@@ -119,11 +119,23 @@ export function Navbar() {
             <span className="text-xs font-semibold">↗</span>
           </a>
           {routes && !isPendingApproval && <NotificationCenter />}
-          {routes && (
-            <LogoutButton
-              showIcon
-              className="h-9 rounded-md border-slate-300 bg-white px-2.5 text-xs font-semibold text-slate-700 shadow-none transition-colors hover:border-[#9fbaa7] hover:bg-[#edf5ee] hover:text-[#205b3d] sm:px-3 sm:text-sm"
-            />
+          {(routes || pathname === "/profile") && (
+            <>
+              <Link
+                href="/profile"
+                className={`inline-flex h-9 items-center whitespace-nowrap rounded-md border px-2.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 sm:px-3 sm:text-sm ${
+                  pathname === "/profile"
+                    ? "border-[#cfe1d2] bg-[#eaf3e9] text-[#205b3d]"
+                    : "border-slate-300 bg-white text-slate-700 hover:border-[#9fbaa7] hover:bg-[#edf5ee] hover:text-[#205b3d]"
+                }`}
+              >
+                Profile &amp; Security
+              </Link>
+              <LogoutButton
+                showIcon
+                className="h-9 rounded-md border-slate-300 bg-white px-2.5 text-xs font-semibold text-slate-700 shadow-none transition-colors hover:border-[#9fbaa7] hover:bg-[#edf5ee] hover:text-[#205b3d] sm:px-3 sm:text-sm"
+              />
+            </>
           )}
         </div>
 

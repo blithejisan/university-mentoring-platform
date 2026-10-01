@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSafeRedirectPath } from "@/lib/auth/redirect";
+import { Eye, EyeOff } from "lucide-react";
 
 const ROLE_HOME: Record<string, string> = {
   ADMIN: "/admin/dashboard",
@@ -22,6 +23,7 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const [universityIdNumber, setUniversityIdNumber] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -110,14 +112,25 @@ function LoginForm() {
               <Label htmlFor="password" className="text-sm font-medium text-[#33483c]">
                 Password
               </Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="h-11 rounded-lg border-[#cbd8ce] bg-white text-sm text-[#203b2f] focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/40"
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="h-11 rounded-lg border-[#cbd8ce] bg-white pr-11 text-sm text-[#203b2f] focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/40"
+                />
+                <button
+                  type="button"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  aria-pressed={showPassword}
+                  onClick={() => setShowPassword((visible) => !visible)}
+                  className="absolute inset-y-0 right-0 inline-flex w-11 items-center justify-center rounded-r-lg text-[#64766a] transition-colors hover:text-[#205b3d] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/50"
+                >
+                  {showPassword ? <EyeOff aria-hidden="true" className="size-4" /> : <Eye aria-hidden="true" className="size-4" />}
+                </button>
+              </div>
             </div>
 
             <div className="flex flex-wrap items-center justify-between gap-3 pt-0.5">
