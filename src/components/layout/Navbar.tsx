@@ -13,6 +13,7 @@ export function Navbar() {
   const isPendingApproval = pathname.startsWith("/pending-approval");
   const roleRoot = pathname.split("/")[1];
   const hasRolePath = /^\/(admin|moderator|mentor|student)(\/|$)/.test(pathname);
+  const hasSidebar = hasRolePath || pathname === "/profile";
   const homeHref = isPendingApproval
     ? "/pending-approval"
     : hasRolePath
@@ -20,8 +21,8 @@ export function Navbar() {
       : "/";
 
   return (
-    <header className="relative z-40 w-full shrink-0 border-b border-slate-700/70 bg-slate-900/90 px-4 py-2 shadow-sm shadow-slate-950/30 backdrop-blur-md sm:px-6">
-      <div className="flex min-h-11 items-center justify-between gap-2 sm:gap-4">
+    <header className="sticky top-0 z-50 w-full shrink-0 border-b border-slate-800/60 bg-slate-950/75 px-6 py-2 shadow-sm shadow-slate-950/30 backdrop-blur-md transition-colors md:px-8">
+      <div className={`flex min-h-12 items-center justify-between gap-2 sm:gap-4 ${hasSidebar ? "md:ml-64" : ""}`}>
         <Link
           href={homeHref}
           className="group flex min-w-0 items-center gap-2 sm:gap-3"
@@ -36,10 +37,10 @@ export function Navbar() {
             </div>
           </div>
           <div className="flex min-w-0 flex-col gap-0.5">
-            <span className="truncate text-xs font-bold leading-tight text-slate-50 transition-colors group-hover:text-cyan-100 sm:text-base">
+            <span className="truncate text-xs font-bold leading-tight text-slate-50 drop-shadow-[0_0_10px_rgba(52,211,153,0.35)] transition-colors group-hover:text-cyan-100 sm:text-base">
               Mentor &amp; Student Management Platform
             </span>
-            <span className="truncate text-[10px] font-medium leading-snug text-slate-300 sm:text-xs">
+            <span className="truncate text-[10px] font-medium leading-snug text-slate-200 sm:text-xs">
               Department of AI &amp; Data Science
             </span>
           </div>
