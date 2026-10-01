@@ -10,9 +10,10 @@ const globalForPrisma = globalThis as unknown as {
   pool: Pool | undefined;
 };
 
-const connectionString =
-  process.env.DATABASE_URL ||
-  "postgresql://postgres:postgres@localhost:5432/mentor_db";
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+  throw new Error("Missing required environment variable: DATABASE_URL.");
+}
 
 const pool =
   globalForPrisma.pool ??

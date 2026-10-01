@@ -18,6 +18,20 @@ async function assertCanReview(
   actor: AccessTokenPayload,
   mentorDepartmentId: string
 ): Promise<void> {
+  const [department, actorUser] = await Promise.all([
+    prisma.department.findUnique({
+      where: { id: mentorDepartmentId },
+      select: { universityId: true },
+    }),
+    prisma.user.findUnique({
+      where: { id: actor.sub },
+      select: { universityId: true },
+    }),
+  ]);
+  if (!department || !actorUser || department.universityId !== actorUser.universityId) {
+    throw new AuthError("Not authorized to review mentors outside your university.", 403);
+  }
+
   if (actor.role === "ADMIN") return;
 
   if (actor.role === "MODERATOR") {
@@ -50,6 +64,13 @@ export async function listPendingMentors(
   }
 
   let departmentFilter: string | undefined;
+  const actorUser = await prisma.user.findUnique({
+    where: { id: actor.sub },
+    select: { universityId: true },
+  });
+  if (!actorUser) {
+    throw new AuthError("Not authorized to view mentor applications.", 403);
+  }
   if (actor.role === "MODERATOR") {
     const moderatorProfile = await prisma.moderatorProfile.findUnique({
       where: { userId: actor.sub },
@@ -63,6 +84,7 @@ export async function listPendingMentors(
   const mentors = await prisma.mentorProfile.findMany({
     where: {
       approvalStatus: "PENDING_APPROVAL",
+      department: { universityId: actorUser.universityId },
       ...(departmentFilter ? { departmentId: departmentFilter } : {}),
     },
     include: { user: true, department: true },

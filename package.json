@@ -11,7 +11,8 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "test:security": "tsx --test tests/security.test.ts"
   },
   "prisma": {
     "seed": "npx tsx prisma/seed.ts"

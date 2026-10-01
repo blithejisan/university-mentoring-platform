@@ -5,6 +5,7 @@ import { sendEmail } from "@/lib/email/sender";
 import { renderEmailTemplate } from "@/lib/email/templates";
 import { getAppUrl } from "@/lib/app-url";
 import { forgotPasswordSchema } from "@/lib/validation/auth";
+import { consumeRateLimit, getClientIp, rateLimitResponse } from "@/lib/security/rate-limit";
 
 export async function POST(request: NextRequest) {
   let body: unknown;
@@ -20,6 +21,22 @@ export async function POST(request: NextRequest) {
   }
 
   const { identifier } = parsed.data;
+  const ipRetryAfter = await consumeRateLimit(
+    "forgot-password:ip",
+    getClientIp(request),
+    10,
+    15 * 60 * 1000
+  );
+  if (ipRetryAfter) return rateLimitResponse(ipRetryAfter);
+
+  const accountRetryAfter = await consumeRateLimit(
+    "forgot-password:account",
+    identifier.trim().toLowerCase(),
+    3,
+    60 * 60 * 1000
+  );
+  if (accountRetryAfter) return rateLimitResponse(accountRetryAfter);
+
   const user = await prisma.user.findFirst({
     where: {
       OR: [{ universityIdNumber: identifier }, { email: identifier }],

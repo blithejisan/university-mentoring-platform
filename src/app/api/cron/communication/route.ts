@@ -2,9 +2,12 @@ import { timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { dispatchDueNoticeNotifications } from "@/lib/services/notice";
 import { dispatchSessionReminders } from "@/lib/services/session";
+import { consumeRateLimit, getClientIp, rateLimitResponse } from "@/lib/security/rate-limit";
 
-function isAuthorized(request: NextRequest) {
-  const secret = process.env.COMMUNICATION_CRON_SECRET;
+export function isCommunicationCronAuthorized(
+  request: NextRequest,
+  secret = process.env.COMMUNICATION_CRON_SECRET
+) {
   const authorization = request.headers.get("authorization") ?? "";
   if (!secret || !authorization.startsWith("Bearer ")) return false;
   const provided = Buffer.from(authorization.slice(7));
@@ -16,7 +19,14 @@ export async function POST(request: NextRequest) {
   if (!process.env.COMMUNICATION_CRON_SECRET) {
     return NextResponse.json({ error: "Communication scheduler is not configured." }, { status: 503 });
   }
-  if (!isAuthorized(request)) {
+  const retryAfter = await consumeRateLimit(
+    "communication-cron:ip",
+    getClientIp(request),
+    20,
+    60 * 1000
+  );
+  if (retryAfter) return rateLimitResponse(retryAfter);
+  if (!isCommunicationCronAuthorized(request)) {
     return NextResponse.json({ error: "Not authorized." }, { status: 401 });
   }
 

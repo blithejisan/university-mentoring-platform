@@ -23,11 +23,12 @@ export interface AccessTokenPayload {
   sub: string; // user id
   role: Role;
   status: string; // AccountStatus at time of issue
+  tokenVersion?: number;
 }
 
 export interface RefreshTokenPayload {
   sub: string; // user id
-  tokenVersion?: number; // reserved for future "invalidate all sessions"
+  tokenVersion?: number;
 }
 
 export function signAccessToken(payload: AccessTokenPayload): string {

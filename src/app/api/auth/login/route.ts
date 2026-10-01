@@ -4,6 +4,7 @@ import { verifyPassword } from "@/lib/auth/password";
 import { signAccessToken, signRefreshToken } from "@/lib/auth/jwt";
 import { attachAuthCookies } from "@/lib/auth/cookies";
 import { loginSchema } from "@/lib/validation/auth";
+import { consumeRateLimit, getClientIp, rateLimitResponse } from "@/lib/security/rate-limit";
 
 export async function POST(request: NextRequest) {
   let body: unknown;
@@ -18,6 +19,22 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Enter your ID and password." }, { status: 400 });
   }
   const { universityIdNumber, password, rememberMe } = parsed.data;
+
+  const ipRetryAfter = await consumeRateLimit(
+    "login:ip",
+    getClientIp(request),
+    30,
+    15 * 60 * 1000
+  );
+  if (ipRetryAfter) return rateLimitResponse(ipRetryAfter);
+
+  const accountRetryAfter = await consumeRateLimit(
+    "login:account",
+    universityIdNumber.trim().toLowerCase(),
+    10,
+    15 * 60 * 1000
+  );
+  if (accountRetryAfter) return rateLimitResponse(accountRetryAfter);
 
   const user = await prisma.user.findUnique({
     where: { universityIdNumber },
@@ -63,8 +80,16 @@ export async function POST(request: NextRequest) {
   // needs the status to route them correctly. Mentor-scoped API routes
   // separately re-check approvalStatus === "APPROVED" (see guards.ts).
 
-  const accessToken = signAccessToken({ sub: user.id, role: user.role, status: user.status });
-  const refreshToken = signRefreshToken({ sub: user.id }, rememberMe);
+  const accessToken = signAccessToken({
+    sub: user.id,
+    role: user.role,
+    status: user.status,
+    tokenVersion: user.tokenVersion,
+  });
+  const refreshToken = signRefreshToken(
+    { sub: user.id, tokenVersion: user.tokenVersion },
+    rememberMe
+  );
 
   const response = NextResponse.json({
     user: {

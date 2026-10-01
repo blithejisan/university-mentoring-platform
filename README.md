@@ -73,11 +73,9 @@ npx prisma generate
 npx prisma migrate dev --name init
 ```
 
-> **Note:** this schema was written and reviewed in a sandboxed
-> environment without network access to Prisma's binary mirror, so
-> `prisma generate`/`migrate` could not be executed there. Run these two
-> commands yourself the first time you set the project up locally — they
-> only need to succeed once per environment.
+> Run `prisma generate` after schema changes. Use `prisma migrate dev` only
+> for local development databases; production deployments use the migration
+> procedure described below.
 
 ### 5. Seed the first admin account + starter data
 
@@ -90,10 +88,12 @@ from the seed script:
 npm run db:seed
 ```
 
-By default this creates an admin with ID `admin-001` and password
-`ChangeMe123!` — override via `SEED_ADMIN_ID` / `SEED_ADMIN_PASSWORD` /
-`SEED_ADMIN_EMAIL` in `.env` before seeding. **Change or remove this
-account before any real deployment.**
+Seed users are created only when their corresponding `SEED_*` variables
+are explicitly configured. Admin requires `SEED_ADMIN_ID`,
+`SEED_ADMIN_EMAIL`, and `SEED_ADMIN_PASSWORD`; moderator requires
+`SEED_MODERATOR_ID`, `SEED_MODERATOR_EMAIL`, and
+`SEED_MODERATOR_PASSWORD`; mentor additionally requires
+`SEED_MENTOR_NAME`. Existing seed users are left unchanged.
 
 ### 6. Run the dev server
 
@@ -108,8 +108,15 @@ screens are a later phase).
 
 ## Environment variables
 
-See `.env.example` for the full list with descriptions. Never commit
-`.env` — it's already covered by `.gitignore`.
+See `.env.example` for variable names. In Vercel, configure
+`DATABASE_URL`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, and `APP_URL`
+under Project Settings → Environment Variables. Configure `COMMUNICATION_CRON_SECRET`
+when the communication scheduler is enabled. For email delivery, configure
+`EMAIL_PROVIDER` and `EMAIL_FROM_ADDRESS`, plus `RESEND_API_KEY` for Resend or
+`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, and `SMTP_PASSWORD` for SMTP. Keep these
+values server-side and never use `NEXT_PUBLIC_` prefixes. Seed variables are
+needed only when intentionally creating seed accounts. Never commit `.env` —
+it's covered by `.gitignore`.
 
 ## Phase 6 communication scheduler
 
@@ -121,6 +128,35 @@ scheduled `AttendanceSession` records within 24 hours of their start time.
 Configure `APP_URL` and the email provider for links and delivery. Repeated
 dispatches are deduplicated through `EmailLog`; failed delivery attempts are
 recorded and may be retried by a later run.
+
+### Phase 7 security migration
+
+For production, take/confirm a Neon restore point before schema changes and
+verify recovery on an isolated Neon branch according to the project’s Neon
+plan and retention policy. Review pending SQL, then use the direct (non-pooled)
+Neon connection for:
+
+```bash
+npx prisma migrate status
+npx prisma migrate deploy
+npx prisma migrate status
+```
+
+Do not use `prisma db push`, `migrate reset`, or `prisma seed` for production
+deployments. Existing databases that predate Prisma migration tracking must
+have their already-present migrations baselined with `migrate resolve --applied`
+only after read-only schema comparison; never baseline a migration whose schema
+changes are absent. The Phase 7 migration adds per-user refresh-token versions
+and a shared PostgreSQL rate-limit table for use across Vercel instances.
+
+Deploy the application only after the migration succeeds and required server
+environment variables are present in Vercel Project Settings. Vercel builds
+generate the Prisma client through `postinstall`. Configure the external
+communication scheduler to `POST /api/cron/communication` with
+`Authorization: Bearer <COMMUNICATION_CRON_SECRET>` at least every 15 minutes.
+For delivery, use `EMAIL_PROVIDER=smtp` with the SMTP variables or
+`EMAIL_PROVIDER=resend` with `RESEND_API_KEY`; configure `EMAIL_FROM_ADDRESS`
+and `APP_URL` in either case.
 
 ## Project structure
 
@@ -147,9 +183,9 @@ src/components/ui/          Hand-built shadcn/ui-style primitives
   per step 4 above before first use.
 - Moderator accounts (like admin) aren't created via public registration
   — the seed script creates a test moderator scoped to ADS
-  (`SEED_MODERATOR_ID`, default `moderator-001`). An "admin manages
+  (`SEED_MODERATOR_ID`). An "admin manages
   moderators" UI is a later-phase addition.
-- The mentor approval workflow (admin: any department; moderator:
+- The mentor approval workflow (admin: any department in their university; moderator:
   own-department only; approve/reject with mandatory reason on reject;
   audit log; approval/rejection email) is implemented — see the phase
   summary for the full authorization walkthrough.

@@ -8,6 +8,7 @@ import { sendEmail } from "@/lib/email/sender";
 import { renderEmailTemplate } from "@/lib/email/templates";
 import { getAppUrl } from "@/lib/app-url";
 import { registerSchema } from "@/lib/validation/auth";
+import { consumeRateLimit, getClientIp, rateLimitResponse } from "@/lib/security/rate-limit";
 
 export async function POST(request: NextRequest) {
   let body: unknown;
@@ -25,6 +26,14 @@ export async function POST(request: NextRequest) {
     );
   }
   const input = parsed.data;
+
+  const retryAfter = await consumeRateLimit(
+    "registration:ip",
+    getClientIp(request),
+    5,
+    60 * 60 * 1000
+  );
+  if (retryAfter) return rateLimitResponse(retryAfter);
 
   const department = await prisma.department.findUnique({
     where: { id: input.departmentId },

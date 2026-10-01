@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashToken } from "@/lib/auth/tokens";
 import { hashPassword } from "@/lib/auth/password";
+import { updatePasswordAndInvalidateSessions } from "@/lib/auth/password-reset";
 import { resetPasswordSchema } from "@/lib/validation/auth";
+import { consumeRateLimit, getClientIp, rateLimitResponse } from "@/lib/security/rate-limit";
 
 export async function POST(request: NextRequest) {
   let body: unknown;
@@ -19,6 +21,14 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
+
+  const retryAfter = await consumeRateLimit(
+    "password-reset:ip",
+    getClientIp(request),
+    10,
+    15 * 60 * 1000
+  );
+  if (retryAfter) return rateLimitResponse(retryAfter);
 
   const tokenHash = hashToken(parsed.data.token);
   const record = await prisma.passwordResetToken.findUnique({ where: { tokenHash } });
@@ -49,10 +59,7 @@ export async function POST(request: NextRequest) {
     });
     if (result.count !== 1) return false;
 
-    await tx.user.update({
-      where: { id: record.userId },
-      data: { passwordHash },
-    });
+    await updatePasswordAndInvalidateSessions(tx, record.userId, passwordHash);
     return true;
   });
 

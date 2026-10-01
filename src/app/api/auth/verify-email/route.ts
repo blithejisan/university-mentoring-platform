@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashToken } from "@/lib/auth/tokens";
 import { verifyEmailSchema } from "@/lib/validation/auth";
+import { consumeRateLimit, getClientIp, rateLimitResponse } from "@/lib/security/rate-limit";
 
 export async function POST(request: NextRequest) {
   let body: unknown;
@@ -15,6 +16,14 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ error: "A verification token is required." }, { status: 400 });
   }
+
+  const retryAfter = await consumeRateLimit(
+    "email-verification:ip",
+    getClientIp(request),
+    30,
+    15 * 60 * 1000
+  );
+  if (retryAfter) return rateLimitResponse(retryAfter);
 
   const tokenHash = hashToken(parsed.data.token);
   const record = await prisma.emailVerificationToken.findUnique({

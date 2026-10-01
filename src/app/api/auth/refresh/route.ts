@@ -20,11 +20,21 @@ export async function POST(request: NextRequest) {
   // have changed (e.g. a mentor got approved, or an account was
   // suspended) since the refresh token was issued.
   const user = await prisma.user.findUnique({ where: { id: payload.sub } });
-  if (!user || user.status === "SUSPENDED" || user.status === "REJECTED") {
+  if (
+    !user ||
+    user.status === "SUSPENDED" ||
+    user.status === "REJECTED" ||
+    (payload.tokenVersion ?? 0) !== user.tokenVersion
+  ) {
     return NextResponse.json({ error: "Session no longer valid." }, { status: 401 });
   }
 
-  const accessToken = signAccessToken({ sub: user.id, role: user.role, status: user.status });
+  const accessToken = signAccessToken({
+    sub: user.id,
+    role: user.role,
+    status: user.status,
+    tokenVersion: user.tokenVersion,
+  });
 
   const response = NextResponse.json({
     user: { id: user.id, role: user.role, status: user.status },
