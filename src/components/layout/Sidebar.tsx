@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   CalendarDays,
+  ExternalLink,
   FileText,
   LayoutDashboard,
   Layers3,
@@ -17,6 +18,14 @@ type SidebarItem = {
   label: string;
   href: string;
   icon: typeof LayoutDashboard;
+  external?: boolean;
+};
+
+const studentPortalItem: SidebarItem = {
+  label: "Student Portal",
+  href: "https://studentportal.green.edu.bd",
+  icon: ExternalLink,
+  external: true,
 };
 
 const roleItems: Record<string, SidebarItem[]> = {
@@ -37,12 +46,14 @@ const roleItems: Record<string, SidebarItem[]> = {
     { label: "Batches", href: "/mentor/batches", icon: Layers3 },
     { label: "Sessions", href: "/mentor/sessions", icon: CalendarDays },
     { label: "Mentors", href: "/mentor/mentors", icon: UsersRound },
+    studentPortalItem,
   ],
   student: [
     { label: "Dashboard", href: "/student/dashboard", icon: LayoutDashboard },
     { label: "Batches", href: "/student/batches", icon: Layers3 },
     { label: "Sessions", href: "/student/dashboard#sessions", icon: CalendarDays },
     { label: "Lab Report Generator", href: "/student/lab-report-generator", icon: FileText },
+    studentPortalItem,
   ],
 };
 
@@ -66,7 +77,7 @@ export function Sidebar() {
   return (
     <aside className="z-20 flex w-full shrink-0 flex-col border-b border-slate-700/70 bg-slate-900/75 backdrop-blur-md md:sticky md:top-16 md:h-[calc(100vh-4rem)] md:w-64 md:self-start md:overflow-y-auto md:border-b-0 md:border-r">
       <nav aria-label="Primary navigation" className="flex gap-1 overflow-x-auto p-3 md:flex-1 md:flex-col md:gap-1.5 md:p-4">
-        {links.map(({ label, href, icon: Icon }) => {
+        {links.map(({ label, href, icon: Icon, external }) => {
           const hrefPath = href.split("#")[0];
           const isHashLink = href.includes("#");
           const active = isHashLink
@@ -81,6 +92,8 @@ export function Sidebar() {
             <Link
               key={href}
               href={href}
+              target={external ? "_blank" : undefined}
+              rel={external ? "noopener noreferrer" : undefined}
               aria-current={active ? "page" : undefined}
               className={`group flex min-h-11 shrink-0 items-center gap-3 rounded-lg border-l-2 px-3 py-2 text-sm font-medium transition-all duration-200 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 md:w-full ${
                 active
