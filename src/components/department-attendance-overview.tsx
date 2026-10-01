@@ -120,7 +120,7 @@ export function DepartmentAttendanceOverviewCard({ departments = [] }: { departm
         </div>
       </div>
 
-      <Card className={overview.lowAttendanceStudentsCount > 0 ? "border-red-500/30 bg-red-500/5" : ""}>
+      <Card className={`ai-neon-card ${overview.lowAttendanceStudentsCount > 0 ? "border-red-500/30 bg-red-500/5" : ""}`}>
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>

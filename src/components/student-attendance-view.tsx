@@ -127,7 +127,7 @@ export function StudentAttendanceView({ studentUserId }: Props) {
 
       {/* Main Metrics Card Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <Card>
+        <Card className="ai-neon-card">
           <CardHeader className="pb-2">
             <CardDescription>Overall Attendance</CardDescription>
             <CardTitle
@@ -140,21 +140,21 @@ export function StudentAttendanceView({ studentUserId }: Props) {
           </CardHeader>
         </Card>
 
-        <Card>
+        <Card className="ai-neon-card">
           <CardHeader className="pb-2">
             <CardDescription>Present</CardDescription>
             <CardTitle className="text-2xl font-bold text-emerald-600">{summary.presentCount}</CardTitle>
           </CardHeader>
         </Card>
 
-        <Card>
+        <Card className="ai-neon-card">
           <CardHeader className="pb-2">
             <CardDescription>Absent</CardDescription>
             <CardTitle className="text-2xl font-bold text-red-600">{summary.absentCount}</CardTitle>
           </CardHeader>
         </Card>
 
-        <Card>
+        <Card className="ai-neon-card">
           <CardHeader className="pb-2">
             <CardDescription>Late / Excused</CardDescription>
             <CardTitle className="text-2xl font-bold text-amber-600">

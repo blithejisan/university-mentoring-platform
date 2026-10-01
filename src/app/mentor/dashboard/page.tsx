@@ -30,7 +30,7 @@ export default async function MentorDashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-        <Card>
+        <Card className="ai-neon-card">
           <CardHeader>
             <CardTitle>Assigned Batches</CardTitle>
           </CardHeader>
@@ -44,7 +44,7 @@ export default async function MentorDashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="ai-neon-card">
           <CardHeader>
             <CardTitle>Mentoring Sessions</CardTitle>
           </CardHeader>

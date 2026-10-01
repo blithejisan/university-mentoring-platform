@@ -83,7 +83,7 @@ export function StudentPerformanceView({ studentUserId }: Props) {
     <div className="space-y-6">
       {/* Overview Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card>
+        <Card className="ai-neon-card">
           <CardHeader className="pb-2">
             <CardDescription>Overall Score Average</CardDescription>
             <CardTitle className="text-3xl font-bold text-primary">
@@ -92,14 +92,14 @@ export function StudentPerformanceView({ studentUserId }: Props) {
           </CardHeader>
         </Card>
 
-        <Card>
+        <Card className="ai-neon-card">
           <CardHeader className="pb-2">
             <CardDescription>Total Evaluations</CardDescription>
             <CardTitle className="text-3xl font-bold text-foreground">{data.totalRecords}</CardTitle>
           </CardHeader>
         </Card>
 
-        <Card>
+        <Card className="ai-neon-card">
           <CardHeader className="pb-2">
             <CardDescription>Categories Evaluated</CardDescription>
             <CardTitle className="text-3xl font-bold text-foreground">

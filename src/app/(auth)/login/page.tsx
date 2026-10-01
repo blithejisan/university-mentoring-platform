@@ -85,7 +85,7 @@ function LoginForm() {
         </p>
       </div>
 
-      <Card className="rounded-2xl border-[#dce5dc] bg-white p-0 shadow-[0_16px_44px_rgba(26,54,38,0.09)]">
+      <Card className="ai-neon-card rounded-2xl border-primary/20 bg-card/90 p-0 shadow-lg shadow-primary/5 backdrop-blur-md">
         <CardHeader className="mb-0 px-6 pb-4 pt-6 sm:px-7 sm:pt-7">
           <CardTitle className="text-xl font-semibold text-[#203b2f]">Log in</CardTitle>
         </CardHeader>
@@ -102,7 +102,7 @@ function LoginForm() {
                 placeholder="e.g. 251035042"
                 required
                 autoFocus
-                className="h-11 rounded-lg border-[#cbd8ce] bg-white text-sm text-[#203b2f] placeholder:text-[#819087] focus-visible:border-[#397553] focus-visible:ring-[#397553]/25"
+                className="h-11 rounded-lg border-[#cbd8ce] bg-white text-sm text-[#203b2f] placeholder:text-[#819087] focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/40"
               />
             </div>
 
@@ -116,7 +116,7 @@ function LoginForm() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="h-11 rounded-lg border-[#cbd8ce] bg-white text-sm text-[#203b2f] focus-visible:border-[#397553] focus-visible:ring-[#397553]/25"
+                className="h-11 rounded-lg border-[#cbd8ce] bg-white text-sm text-[#203b2f] focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/40"
               />
             </div>
 

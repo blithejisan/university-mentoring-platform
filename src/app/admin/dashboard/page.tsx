@@ -60,7 +60,7 @@ export default async function AdminDashboardPage() {
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
         
         {/* Card 1: Mentor Applications */}
-        <div className="group flex flex-col justify-between rounded-xl border border-slate-200 bg-white/90 p-5 shadow-sm backdrop-blur-md transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-[0_8px_24px_rgba(15,23,42,0.08),0_0_14px_rgba(33,97,63,0.07)] sm:p-6">
+        <div className="ai-neon-card group flex flex-col justify-between rounded-xl border border-slate-200 bg-white/90 p-5 shadow-sm backdrop-blur-md transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-[0_8px_24px_rgba(15,23,42,0.08),0_0_14px_rgba(33,97,63,0.07)] sm:p-6">
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <span className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-700">
@@ -85,7 +85,7 @@ export default async function AdminDashboardPage() {
         </div>
 
         {/* Card 2: Batches & Assignments */}
-        <div className="group flex flex-col justify-between rounded-xl border border-slate-200 bg-white/90 p-5 shadow-sm backdrop-blur-md transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-[0_8px_24px_rgba(15,23,42,0.08),0_0_14px_rgba(33,97,63,0.07)] sm:p-6">
+        <div className="ai-neon-card group flex flex-col justify-between rounded-xl border border-slate-200 bg-white/90 p-5 shadow-sm backdrop-blur-md transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-[0_8px_24px_rgba(15,23,42,0.08),0_0_14px_rgba(33,97,63,0.07)] sm:p-6">
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <span className="rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-800">

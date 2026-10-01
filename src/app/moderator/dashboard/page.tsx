@@ -38,7 +38,7 @@ export default async function ModeratorDashboardPage() {
       <BatchPerformanceReport role="MODERATOR" />
 
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-        <Card>
+        <Card className="ai-neon-card">
           <CardHeader>
             <CardTitle>Mentor Applications</CardTitle>
           </CardHeader>
@@ -52,7 +52,7 @@ export default async function ModeratorDashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="ai-neon-card">
           <CardHeader>
             <CardTitle>Department Batches</CardTitle>
           </CardHeader>
