@@ -8,10 +8,15 @@ let prisma: typeof import("../src/lib/prisma").prisma;
 let guards: typeof import("../src/lib/auth/guards");
 let sessions: typeof import("../src/lib/auth/session");
 let approvals: typeof import("../src/lib/services/mentorApproval");
+let mentorDirectory: typeof import("../src/lib/services/mentorDirectory");
+let evaluations: typeof import("../src/lib/services/evaluation");
 let notifications: typeof import("../src/lib/services/notification");
 let rateLimit: typeof import("../src/lib/security/rate-limit");
 let cron: typeof import("../src/app/api/cron/communication/route");
 let passwordReset: typeof import("../src/lib/auth/password-reset");
+let logout: typeof import("../src/app/api/auth/logout/route");
+let jwt: typeof import("../src/lib/auth/jwt");
+let redirects: typeof import("../src/lib/auth/redirect");
 const restorers: Array<() => void> = [];
 const modelOverrides = new Map<
   string,
@@ -23,10 +28,15 @@ before(async () => {
   guards = await import("../src/lib/auth/guards");
   sessions = await import("../src/lib/auth/session");
   approvals = await import("../src/lib/services/mentorApproval");
+  mentorDirectory = await import("../src/lib/services/mentorDirectory");
+  evaluations = await import("../src/lib/services/evaluation");
   notifications = await import("../src/lib/services/notification");
   rateLimit = await import("../src/lib/security/rate-limit");
   cron = await import("../src/app/api/cron/communication/route");
   passwordReset = await import("../src/lib/auth/password-reset");
+  logout = await import("../src/app/api/auth/logout/route");
+  jwt = await import("../src/lib/auth/jwt");
+  redirects = await import("../src/lib/auth/redirect");
 });
 
 afterEach(() => {
@@ -218,6 +228,93 @@ test("admin pending mentor query is university-filtered", async () => {
   });
   await approvals.listPendingMentors(admin);
   assert.equal(query?.where?.department?.universityId, "u1");
+});
+
+test("approved mentor directory is restricted to the caller's university", async () => {
+  let query: { where?: { department?: { universityId?: string }; departmentId?: string } } | undefined;
+  stubModel("user", "findUnique", async () => ({ universityId: "u1" }));
+  stubModel("mentorProfile", "findMany", async (args) => {
+    query = args as typeof query;
+    return [];
+  });
+
+  await mentorDirectory.listApprovedMentors(admin);
+  assert.equal(query?.where?.department?.universityId, "u1");
+  assert.equal(query?.where?.departmentId, undefined);
+});
+
+test("admin cannot request approved mentors from another university", async () => {
+  let queryCount = 0;
+  stubModel("user", "findUnique", async () => ({ universityId: "u1" }));
+  stubModel("department", "findUnique", async () => ({ universityId: "u2" }));
+  stubModel("mentorProfile", "findMany", async () => {
+    queryCount += 1;
+    return [];
+  });
+
+  await forbidden(() => mentorDirectory.listApprovedMentors(admin, "d2"));
+  assert.equal(queryCount, 0);
+});
+
+test("evaluation access checks admin and moderator scope before reading records", async () => {
+  let evaluationQueryCount = 0;
+  stubModel("mentorProfile", "findUnique", async () => ({
+    departmentId: "d2",
+    department: { universityId: "u2" },
+  }));
+  stubModel("department", "findUnique", async () => ({ universityId: "u2" }));
+  stubModel("user", "findUnique", async () => ({ universityId: "u1" }));
+  stubModel("mentorEvaluation", "findMany", async () => {
+    evaluationQueryCount += 1;
+    return [];
+  });
+
+  await forbidden(() => evaluations.listEvaluationsForMentor(admin, "mentor-2"));
+  assert.equal(evaluationQueryCount, 0);
+
+  stubModel("department", "findUnique", async () => ({ universityId: "u1" }));
+  stubModel("moderatorProfile", "findUnique", async () => ({ departmentId: "d1" }));
+  await forbidden(() => evaluations.listEvaluationsForMentor(moderator, "mentor-2"));
+  assert.equal(evaluationQueryCount, 0);
+});
+
+test("logout increments token version to revoke the refresh session", async () => {
+  const originalSecret = process.env.JWT_REFRESH_SECRET;
+  process.env.JWT_REFRESH_SECRET = "test-refresh-secret";
+  restorers.push(() => {
+    if (originalSecret === undefined) delete process.env.JWT_REFRESH_SECRET;
+    else process.env.JWT_REFRESH_SECRET = originalSecret;
+  });
+  let updateArgs: unknown;
+  stubModel("user", "updateMany", async (args) => {
+    updateArgs = args;
+    return { count: 1 };
+  });
+
+  const refreshToken = jwt.signRefreshToken(
+    { sub: "student-1", tokenVersion: 4 },
+    false
+  );
+  const request = new NextRequest("http://localhost/api/auth/logout", {
+    method: "POST",
+    headers: { cookie: `refresh_token=${refreshToken}` },
+  });
+  const response = await logout.POST(request);
+
+  assert.deepEqual(updateArgs, {
+    where: { id: "student-1", tokenVersion: 4 },
+    data: { tokenVersion: { increment: 1 } },
+  });
+  assert.equal(response.cookies.get("refresh_token")?.value, "");
+  assert.equal(response.cookies.get("access_token")?.value, "");
+});
+
+test("login redirect accepts only safe same-origin paths", () => {
+  assert.equal(redirects.getSafeRedirectPath("/student/dashboard?tab=1"), "/student/dashboard?tab=1");
+  assert.equal(redirects.getSafeRedirectPath("https://evil.example"), null);
+  assert.equal(redirects.getSafeRedirectPath("//evil.example/path"), null);
+  assert.equal(redirects.getSafeRedirectPath("/\\\\evil.example/path"), null);
+  assert.equal(redirects.getSafeRedirectPath("/login?next=/student/dashboard"), null);
 });
 
 test("notifications are filtered by the caller's university and identity", async () => {

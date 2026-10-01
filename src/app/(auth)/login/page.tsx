@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getSafeRedirectPath } from "@/lib/auth/redirect";
 
 const ROLE_HOME: Record<string, string> = {
   ADMIN: "/admin/dashboard",
@@ -48,8 +49,8 @@ function LoginForm() {
         return;
       }
 
-      const next = searchParams.get("next");
-      router.push(next && next !== "/login" ? next : ROLE_HOME[data.user.role] ?? "/");
+      const next = getSafeRedirectPath(searchParams.get("next"));
+      router.push(next ?? ROLE_HOME[data.user.role] ?? "/");
       router.refresh();
     } catch {
       setError("Something went wrong. Please try again.");

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { AuthError } from "@/lib/auth/guards";
+import { AuthError, requireModeratorOwnsDepartment } from "@/lib/auth/guards";
 import type { AccessTokenPayload } from "@/lib/auth/jwt";
 import type { SubmitEvaluationInput } from "@/lib/validation/evaluation";
 import { writeAuditLog } from "@/lib/audit";
@@ -141,6 +141,7 @@ export async function listEvaluationsForMentor(
   mentorId?: string
 ) {
   let targetMentorId: string;
+  let targetScope: { departmentId: string; universityId: string } | undefined;
 
   if (actor.role === "MENTOR") {
     targetMentorId = actor.sub;
@@ -149,12 +150,37 @@ export async function listEvaluationsForMentor(
       throw new AuthError("mentorId query parameter is required.", 400);
     }
     targetMentorId = mentorId;
+    const targetMentor = await prisma.mentorProfile.findUnique({
+      where: { userId: targetMentorId },
+      select: {
+        departmentId: true,
+        department: { select: { universityId: true } },
+      },
+    });
+    if (!targetMentor) {
+      throw new AuthError("Mentor not found.", 404);
+    }
+    await requireModeratorOwnsDepartment(actor, targetMentor.departmentId);
+    targetScope = {
+      departmentId: targetMentor.departmentId,
+      universityId: targetMentor.department.universityId,
+    };
   } else {
     throw new AuthError("Not authorized.", 403);
   }
 
   const evaluations = await prisma.mentorEvaluation.findMany({
-    where: { mentorId: targetMentorId },
+    where: {
+      mentorId: targetMentorId,
+      ...(targetScope
+        ? {
+            mentor: {
+              departmentId: targetScope.departmentId,
+              department: { universityId: targetScope.universityId },
+            },
+          }
+        : {}),
+    },
     orderBy: { createdAt: "desc" },
     include: {
       session: {
