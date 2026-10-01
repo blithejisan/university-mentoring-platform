@@ -64,8 +64,8 @@ export function Sidebar() {
   const links = [...items, { label: "Profile & Security", href: "/profile", icon: UserRound }];
 
   return (
-    <aside className="z-20 flex w-full shrink-0 flex-col border-b border-slate-700/70 bg-slate-900/75 backdrop-blur-md md:sticky md:top-0 md:h-full md:max-h-full md:w-64 md:self-start md:overflow-y-auto md:border-b-0 md:border-r">
-      <nav aria-label="Primary navigation" className="flex gap-1 overflow-x-auto p-3 md:min-h-0 md:flex-1 md:flex-col md:gap-1.5 md:overflow-y-auto md:p-4">
+    <aside className="z-20 flex w-full shrink-0 flex-col border-b border-slate-700/70 bg-slate-900/75 backdrop-blur-md md:sticky md:top-16 md:h-[calc(100vh-4rem)] md:w-64 md:self-start md:overflow-y-auto md:border-b-0 md:border-r">
+      <nav aria-label="Primary navigation" className="flex gap-1 overflow-x-auto p-3 md:flex-1 md:flex-col md:gap-1.5 md:p-4">
         {links.map(({ label, href, icon: Icon }) => {
           const hrefPath = href.split("#")[0];
           const isHashLink = href.includes("#");

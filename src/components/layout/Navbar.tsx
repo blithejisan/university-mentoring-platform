@@ -20,7 +20,7 @@ export function Navbar() {
       : "/";
 
   return (
-    <header className="sticky top-0 z-50 w-full shrink-0 border-b border-slate-800/30 bg-slate-950/25 px-4 py-2 shadow-sm shadow-slate-950/20 backdrop-blur-md transition-colors duration-200 sm:px-6 lg:px-8">
+    <header className="sticky top-0 z-50 w-full shrink-0 border-b border-slate-800/30 bg-slate-950/30 px-4 py-2 shadow-sm shadow-slate-950/20 backdrop-blur-md transition-colors duration-200 sm:px-6 lg:px-8">
       <div className="flex min-h-12 items-center justify-between gap-2 sm:gap-4">
         <Link
           href={homeHref}
