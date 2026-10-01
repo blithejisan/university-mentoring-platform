@@ -9,7 +9,7 @@ export function Footer() {
   const [activeModal, setActiveModal] = useState<string | null>(null);
 
   return (
-    <footer className="relative mt-auto w-full border-t border-slate-800 bg-slate-950 pt-16 pb-12 text-base text-slate-300 md:pb-16">
+    <footer className="relative mt-auto w-full border-t border-slate-800/30 bg-slate-950/30 pt-16 pb-12 text-base text-slate-300 backdrop-blur-md md:pb-16">
       <div className="max-w-7xl mx-auto px-6 sm:px-10 relative z-10">
         
         {/* Original 3-Column Layout */}
