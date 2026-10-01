@@ -96,9 +96,11 @@ export function Sidebar() {
       </nav>
       <div className="mt-auto flex shrink-0 items-center justify-between gap-3 border-t border-slate-700/70 p-3 md:flex-col md:items-stretch md:p-4">
         <ThemeToggle />
-        <p className="hidden text-xs leading-relaxed text-slate-400 md:block">
+        <p
+          data-sidebar-brand
+          className="hidden text-xs font-bold leading-relaxed text-emerald-400 drop-shadow-[0_0_8px_rgba(16,185,129,0.5)] md:block"
+        >
           Green University of Bangladesh
-          <span className="mt-1 block text-slate-500">AI &amp; Data Science Portal</span>
         </p>
       </div>
     </aside>

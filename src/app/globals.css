@@ -226,6 +226,10 @@ html {
   color: #b91c1c;
 }
 
+:root.light .theme-obsidian [data-sidebar-brand] {
+  filter: drop-shadow(0 0 5px rgb(5 150 105 / 20%));
+}
+
 :root.light .theme-obsidian [class~="text-amber-400"] {
   color: #b45309;
 }
