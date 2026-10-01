@@ -57,7 +57,7 @@ export function Sidebar() {
     updateHash();
     window.addEventListener("hashchange", updateHash);
     return () => window.removeEventListener("hashchange", updateHash);
-  }, []);
+  }, [pathname]);
 
   if (!items.length && pathname !== "/profile") return null;
 

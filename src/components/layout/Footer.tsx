@@ -27,7 +27,7 @@ export function Footer() {
                 />
               </div>
               <div>
-                <h3 className="text-base font-semibold leading-snug text-white">
+                <h3 className="text-base font-semibold leading-snug text-foreground">
                   Mentor & Student Management Platform
                 </h3>
                 <p className="text-xs text-blue-400 font-bold">Green University of Bangladesh</p>
@@ -48,13 +48,13 @@ export function Footer() {
     <p className="flex items-start space-x-2">
       <Phone className="w-4 h-4 text-emerald-400 shrink-0 mt-1" />
       <span className="font-bold">
-        <strong className="text-white font-extrabold">Phone:</strong> +88001324-713504
+        <strong className="font-extrabold text-foreground">Phone:</strong> +88001324-713504
       </span>
     </p>
     <p className="flex items-start space-x-2 leading-relaxed">
       <MapPin className="w-4 h-4 text-emerald-400 shrink-0 mt-1" />
       <span className="font-bold">
-        <strong className="text-white font-extrabold">Address:</strong> Purbachal American City, Kanchan, Rupganj, Narayanganj, Dhaka, 1461
+        <strong className="font-extrabold text-foreground">Address:</strong> Purbachal American City, Kanchan, Rupganj, Narayanganj, Dhaka, 1461
       </span>
     </p>
   </div>
@@ -120,9 +120,9 @@ export function Footer() {
       {/* Modal Popup */}
       {activeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-3xl p-8 max-w-lg w-full text-white shadow-2xl space-y-5">
+          <div className="max-w-lg w-full space-y-5 rounded-3xl border border-border bg-card p-8 text-card-foreground shadow-2xl">
             <div className="flex justify-between items-center border-b border-slate-800 pb-4">
-              <h3 className="text-xl font-bold text-blue-400 capitalize">
+              <h3 className="text-xl font-bold text-primary capitalize">
                 {activeModal === 'privacy' && '🔒 Privacy Policy'}
                 {activeModal === 'terms' && '📜 Terms of Service'}
                 {activeModal === 'support' && '💬 Support'}
