@@ -17,7 +17,7 @@ export function Footer() {
           {/* Column 1: Brand & Overview */}
           <div className="space-y-4">
             <div className="flex items-center space-x-3.5">
-              <div className="relative size-11 shrink-0 overflow-hidden rounded-lg border border-white/15 bg-white p-1.5">
+              <div data-brand-logo-surface className="relative size-11 shrink-0 overflow-hidden rounded-lg border border-white/15 bg-white p-1.5">
                 <Image
                   src="/ads-logo.png"
                   alt="ADS Logo"

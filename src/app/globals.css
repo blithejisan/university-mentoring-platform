@@ -4,23 +4,23 @@
 :root {
   --radius: 0.625rem;
 
-  --background: #f4f7fb;
-  --foreground: #172b43;
+  --background: #0f172a;
+  --foreground: #e2e8f0;
 
-  --card: #ffffff;
-  --card-foreground: #172b43;
+  --card: rgb(30 41 59 / 82%);
+  --card-foreground: #f1f5f9;
 
-  --primary: #21613f;
+  --primary: #0e7490;
   --primary-foreground: #ffffff;
 
-  --secondary: #eaf0f6;
-  --secondary-foreground: #243b55;
+  --secondary: #1e293b;
+  --secondary-foreground: #e2e8f0;
 
-  --muted: #edf2f7;
-  --muted-foreground: #596d82;
+  --muted: #1e293b;
+  --muted-foreground: #cbd5e1;
 
-  --accent: #34724f;
-  --accent-foreground: #ffffff;
+  --accent: #06b6d4;
+  --accent-foreground: #082f49;
 
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
@@ -31,9 +31,9 @@
   --warning: #f59e0b;
   --warning-foreground: #ffffff;
 
-  --border: #d8e1eb;
-  --input: #c5d1de;
-  --ring: #34724f;
+  --border: #334155;
+  --input: #475569;
+  --ring: #22d3ee;
 }
 
 @theme inline {
@@ -77,9 +77,18 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+body.theme-obsidian {
+  position: relative;
+  isolation: isolate;
+  background: var(--color-background);
+  color: var(--color-foreground);
+  color-scheme: dark;
+}
+
 html {
   scroll-behavior: smooth;
-  scrollbar-color: rgb(33 97 63 / 28%) transparent;
+  background: var(--color-background);
+  scrollbar-color: rgb(6 182 212 / 35%) transparent;
   scrollbar-width: thin;
 }
 
@@ -99,13 +108,115 @@ html {
 *::-webkit-scrollbar-thumb {
   border: 3px solid transparent;
   border-radius: 999px;
-  background: rgb(33 97 63 / 28%);
+  background: rgb(6 182 212 / 32%);
   background-clip: padding-box;
 }
 
 *::-webkit-scrollbar-thumb:hover {
-  background: rgb(33 97 63 / 48%);
+  background: rgb(6 182 212 / 55%);
   background-clip: padding-box;
+}
+
+.theme-obsidian main,
+.theme-obsidian > header,
+.theme-obsidian > footer {
+  position: relative;
+  z-index: 1;
+}
+
+/* Keep legacy utility-based screens coherent as shared components adopt tokens. */
+.theme-obsidian [class~="bg-white"] {
+  background-color: #1e293b;
+}
+
+.theme-obsidian [class~="bg-white/90"] {
+  background-color: rgb(30 41 59 / 90%);
+}
+
+.theme-obsidian [class~="bg-white/80"] {
+  background-color: rgb(30 41 59 / 80%);
+}
+
+.theme-obsidian [class~="bg-white/70"] {
+  background-color: rgb(30 41 59 / 70%);
+}
+
+.theme-obsidian [class~="bg-slate-50"] {
+  background-color: #0f172a;
+}
+
+.theme-obsidian [class~="bg-slate-100"] {
+  background-color: #1e293b;
+}
+
+.theme-obsidian [class~="bg-slate-200"] {
+  background-color: #334155;
+}
+
+.theme-obsidian [class~="text-slate-900"] {
+  color: #f8fafc;
+}
+
+.theme-obsidian [class~="text-slate-800"] {
+  color: #e2e8f0;
+}
+
+.theme-obsidian [class~="text-slate-700"],
+.theme-obsidian [class~="text-slate-600"] {
+  color: #cbd5e1;
+}
+
+.theme-obsidian [class~="text-slate-500"],
+.theme-obsidian [class~="text-slate-400"] {
+  color: #94a3b8;
+}
+
+.theme-obsidian [class~="text-primary"] {
+  color: #67e8f9;
+}
+
+.theme-obsidian [class~="text-success"] {
+  color: #6ee7b7;
+}
+
+.theme-obsidian [class~="text-[#34724f]"] {
+  color: #67e8f9;
+}
+
+.theme-obsidian [class~="text-[#33483c]"] {
+  color: #e2e8f0;
+}
+
+.theme-obsidian [class~="border-slate-100"],
+.theme-obsidian [class~="border-slate-200"],
+.theme-obsidian [class~="border-slate-300"] {
+  border-color: #334155;
+}
+
+.theme-obsidian [class~="hover:bg-slate-50"]:hover,
+.theme-obsidian [class~="hover:bg-slate-100"]:hover,
+.theme-obsidian [class~="hover:bg-white"]:hover {
+  background-color: #334155;
+}
+
+.theme-obsidian [data-slot="card"] {
+  border-color: rgb(71 85 105 / 75%);
+  background-color: rgb(30 41 59 / 78%);
+  color: #e2e8f0;
+  backdrop-filter: blur(12px);
+}
+
+.theme-obsidian table {
+  color: #e2e8f0;
+}
+
+.theme-obsidian th {
+  color: #cbd5e1;
+}
+
+.theme-obsidian td,
+.theme-obsidian th {
+  border-color: #334155;
 }
 
 .page-enter {
@@ -124,8 +235,8 @@ html {
   inset: 0;
   border-radius: inherit;
   box-shadow:
-    0 0 20px rgb(59 130 246 / 15%),
-    0 0 40px rgb(139 92 246 / 8%);
+    0 0 20px rgb(6 182 212 / 16%),
+    0 0 40px rgb(139 92 246 / 10%);
   animation: ai-neon-breathe 4s ease-in-out infinite;
   content: "";
   pointer-events: none;
@@ -229,9 +340,9 @@ textarea:focus-visible,
 select:focus-visible,
 [role="combobox"]:focus-visible {
   border-color: var(--color-primary);
-  outline: 2px solid rgb(33 97 63 / 45%);
+  outline: 2px solid rgb(6 182 212 / 55%);
   outline-offset: 2px;
-  box-shadow: 0 0 14px rgb(33 97 63 / 14%);
+  box-shadow: 0 0 14px rgb(6 182 212 / 18%);
 }
 
 .skeleton-shimmer {
@@ -270,8 +381,59 @@ select:focus-visible,
 }
 
 .lab-generator-link:focus-visible {
-  outline: 2px solid #65a30d;
+  outline: 2px solid #22d3ee;
   outline-offset: 2px;
+}
+
+.neural-background {
+  position: fixed;
+  z-index: 0;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0.16;
+}
+
+.neural-background svg {
+  width: 100%;
+  height: 100%;
+}
+
+.neural-link {
+  stroke: #38bdf8;
+  stroke-width: 1;
+  opacity: 0.34;
+}
+
+.neural-node {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: neural-node-breathe 5s ease-in-out infinite;
+}
+
+.neural-node:nth-of-type(3n) {
+  animation-delay: -1.7s;
+}
+
+.neural-node:nth-of-type(3n + 1) {
+  animation-delay: -3.2s;
+}
+
+.theme-obsidian [data-brand-logo-surface] {
+  background-color: #f8fafc;
+}
+
+@keyframes neural-node-breathe {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(0.82);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.18);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -299,6 +461,12 @@ select:focus-visible,
     opacity: 0.7;
     transform: none;
     will-change: auto;
+  }
+
+  .neural-node {
+    animation: none;
+    opacity: 0.75;
+    transform: none;
   }
 
   .lab-generator-link {

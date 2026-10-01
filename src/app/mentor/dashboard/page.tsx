@@ -22,9 +22,9 @@ export default async function MentorDashboardPage() {
 
   return (
     <div className="page-enter mx-auto flex w-full max-w-7xl flex-col gap-7">
-      <div className="flex flex-col items-start justify-between gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-center">
+      <div className="ai-neural-hero flex flex-col items-start justify-between gap-4 rounded-2xl border border-slate-700 bg-slate-900/75 p-5 backdrop-blur-md sm:flex-row sm:items-center sm:p-6">
         <div>
-          <p className="text-sm font-medium text-[#34724f]">Mentor portal</p>
+          <p className="text-sm font-medium text-cyan-300">Mentor portal</p>
           <h1 className="mt-1 text-2xl font-semibold leading-tight text-slate-900">Dashboard</h1>
         </div>
       </div>

@@ -77,7 +77,7 @@ export function PasswordChangeForm() {
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         {passwordFields.map(({ name, label, autocomplete }) => (
           <div key={name} className="flex flex-col gap-1.5">
-            <Label htmlFor={name} className="text-sm font-medium text-[#33483c]">{label}</Label>
+            <Label htmlFor={name} className="text-sm font-medium text-slate-200">{label}</Label>
             <div className="relative">
               <Input
                 id={name}
@@ -87,14 +87,14 @@ export function PasswordChangeForm() {
                 autoComplete={autocomplete}
                 required
                 maxLength={72}
-                className="h-11 rounded-lg border-[#cbd8ce] bg-white pr-11 text-sm text-[#203b2f] focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/40"
+                className="h-11 rounded-lg border-slate-600 bg-slate-900/70 pr-11 text-sm text-slate-100 focus-visible:border-cyan-400 focus-visible:ring-2 focus-visible:ring-cyan-400/40"
               />
               <button
                 type="button"
                 aria-label={visible[name] ? `Hide ${label.toLowerCase()}` : `Show ${label.toLowerCase()}`}
                 aria-pressed={visible[name]}
                 onClick={() => setVisible((current) => ({ ...current, [name]: !current[name] }))}
-                className="absolute inset-y-0 right-0 inline-flex w-11 items-center justify-center rounded-r-lg text-[#64766a] transition-colors hover:text-[#205b3d] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/50"
+                className="absolute inset-y-0 right-0 inline-flex w-11 items-center justify-center rounded-r-lg text-slate-400 transition-colors hover:text-cyan-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cyan-400/50"
               >
                 {visible[name] ? <EyeOff aria-hidden="true" className="size-4" /> : <Eye aria-hidden="true" className="size-4" />}
               </button>
@@ -113,7 +113,7 @@ export function PasswordChangeForm() {
           </div>
           <ul className="grid gap-x-3 gap-y-1 text-xs text-slate-600 sm:grid-cols-2">
             {checks.map((check) => (
-              <li key={check.label} className={check.passed ? "text-emerald-700" : ""}>
+              <li key={check.label} className={check.passed ? "text-emerald-300" : ""}>
                 <span aria-hidden="true">{check.passed ? "✓" : "•"} </span>{check.label}
               </li>
             ))}
@@ -123,7 +123,7 @@ export function PasswordChangeForm() {
         <Button
           type="submit"
           disabled={loading || strength !== 5 || passwords.newPassword !== passwords.confirmPassword}
-          className="mt-1 h-11 rounded-lg bg-[#21613f] text-sm font-semibold text-white shadow-sm hover:bg-[#194f33]"
+          className="mt-1 h-11 rounded-lg bg-cyan-700 text-sm font-semibold text-white shadow-sm hover:bg-cyan-600"
         >
           <LockKeyhole aria-hidden="true" className="mr-2 size-4" />
           {loading ? "Updating password…" : "Update password"}

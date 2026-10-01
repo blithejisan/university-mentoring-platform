@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
+import { NeuralBackground } from "@/components/ui/neural-background";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -18,7 +19,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="h-full scroll-smooth">
-      <body className={`${inter.className} min-h-full flex flex-col bg-slate-50 text-slate-900 antialiased`}>
+      <body className={`${inter.className} theme-obsidian min-h-full flex flex-col bg-slate-900 text-slate-100 antialiased`}>
+        <NeuralBackground />
         {/* Global Glassmorphism Header Navbar */}
         <Navbar />
 

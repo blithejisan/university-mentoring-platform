@@ -153,17 +153,20 @@ export function StudentPerformanceView({ studentUserId }: Props) {
               <div className="h-64 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={data.chartData}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
-                    <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-                    <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} />
+                    <CartesianGrid stroke="#334155" strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="date" tick={{ fill: "#cbd5e1", fontSize: 12 }} axisLine={{ stroke: "#475569" }} tickLine={{ stroke: "#475569" }} />
+                    <YAxis domain={[0, 100]} tick={{ fill: "#cbd5e1", fontSize: 12 }} axisLine={{ stroke: "#475569" }} tickLine={{ stroke: "#475569" }} />
                     <Tooltip
                       formatter={(val: unknown) => [`${val ?? 0} / 100`, "Score"]}
                       labelFormatter={(label) => `Date: ${label}`}
+                      contentStyle={{ backgroundColor: "#1e293b", border: "1px solid #475569", borderRadius: 8, color: "#f1f5f9" }}
+                      labelStyle={{ color: "#f1f5f9" }}
+                      itemStyle={{ color: "#67e8f9" }}
                     />
                     <Line
                       type="monotone"
                       dataKey="score"
-                      stroke="#2563eb"
+                      stroke="#22d3ee"
                       strokeWidth={2}
                       activeDot={{ r: 6 }}
                     />

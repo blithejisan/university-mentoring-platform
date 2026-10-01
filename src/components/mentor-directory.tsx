@@ -78,7 +78,7 @@ export function MentorDirectory({ role }: Props) {
                 <p className="mt-1 break-all text-sm text-slate-700">{user.email}</p>
                 <p className="mt-1 text-xs font-medium text-slate-500">{department.name} ({department.code})</p>
               </div>
-              <Button asChild variant="outline" size="sm" className="shrink-0 border-[#bfd2c3] text-[#205b3d] hover:bg-[#edf5ee]">
+              <Button asChild variant="outline" size="sm" className="shrink-0 border-slate-600 text-cyan-200 hover:bg-slate-800">
                 <a href={`mailto:${user.email}`} aria-label={`Email ${user.name || "mentor"}`}>
                   <Mail aria-hidden="true" />
                   Email
