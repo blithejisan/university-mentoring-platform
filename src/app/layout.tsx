@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { PortalShell } from "@/components/layout/PortalShell";
+import { ThemeProvider } from "@/components/layout/ThemeProvider";
 import { NeuralBackground } from "@/components/ui/neural-background";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -17,10 +18,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full scroll-smooth">
+    <html lang="en" className="h-full scroll-smooth" suppressHydrationWarning>
       <body className={`${inter.className} theme-obsidian min-h-full bg-slate-900 text-slate-100 antialiased`}>
-        <NeuralBackground />
-        <PortalShell>{children}</PortalShell>
+        <ThemeProvider>
+          <NeuralBackground />
+          <PortalShell>{children}</PortalShell>
+        </ThemeProvider>
       </body>
     </html>
   );
