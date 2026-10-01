@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { Navbar } from "@/components/layout/Navbar";
-import { Footer } from "@/components/layout/Footer";
+import { PortalShell } from "@/components/layout/PortalShell";
 import { NeuralBackground } from "@/components/ui/neural-background";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -19,18 +18,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="h-full scroll-smooth">
-      <body className={`${inter.className} theme-obsidian min-h-full flex flex-col bg-slate-900 text-slate-100 antialiased`}>
+      <body className={`${inter.className} theme-obsidian min-h-full bg-slate-900 text-slate-100 antialiased`}>
         <NeuralBackground />
-        {/* Global Glassmorphism Header Navbar */}
-        <Navbar />
-
-        {/* Main Application Canvas */}
-        <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-8 sm:px-6 lg:px-8">
-          {children}
-        </main>
-
-        {/* Enterprise Deep Navy Footer */}
-        <Footer />
+        <PortalShell>{children}</PortalShell>
       </body>
     </html>
   );
