@@ -1,194 +1,312 @@
-# Mentor Management System
+# University Mentoring & Management System
 
-University Mentoring & Student Management Platform — Phase 1 (Foundation).
+A role-based mentoring and academic management platform for organizing university departments, student batches, mentor assignments, mentoring sessions, attendance, evaluations, notices, and communication.
 
-Built for the Artificial Intelligence and Data Science (ADS) Department of
-Green University of Bangladesh, architected to support additional
-departments later without redesigning the core schema.
+[![Next.js](https://img.shields.io/badge/Next.js-App_Router-black?logo=nextdotjs)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)](https://www.typescriptlang.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Neon-4169E1?logo=postgresql)](https://www.postgresql.org/)
+[![Prisma](https://img.shields.io/badge/ORM-Prisma-2D3748?logo=prisma)](https://www.prisma.io/)
+[![Tailwind CSS](https://img.shields.io/badge/Styles-Tailwind_CSS-06B6D4?logo=tailwindcss)](https://tailwindcss.com/)
+[![Vercel](https://img.shields.io/badge/Deploy-Vercel-black?logo=vercel)](https://vercel.com/)
+[![Security audited](https://img.shields.io/badge/Security_Audited-17%2F17_regression_tests-brightgreen)](#security-and-compliance)
 
-## Phase 1 scope
+## Developer
 
-This phase covers project setup and the authentication foundation only:
-student/mentor registration, email verification, the mentor
-approval-pending status, login, logout, token refresh, forgot/reset
-password, role-aware routing, and a placeholder dashboard per role.
-Attendance, batches, performance, notices, XLSX import, and the actual
-mentor-approval admin/moderator UI are built in later phases.
+| | |
+|---|---|
+| **Developer** | MD. Jahidul Hasan Jisan |
+| **Student ID** | 251035042 |
+| **Department** | Department of Artificial Intelligence and Data Science |
+| **Institution** | Green University of Bangladesh (GUB) |
 
-## Tech stack
+## Overview
 
-Next.js (App Router) + TypeScript, Tailwind CSS v4, hand-built
-shadcn/ui-style components, PostgreSQL + Prisma, JWT auth via HTTP-only
-cookies, a provider-agnostic email layer (console-log in dev, Resend when
-configured).
+The University Mentoring & Management System provides a shared workspace for academic administrators, moderators, mentors, and students. It is designed to replace fragmented spreadsheets and manual follow-up with a permission-aware workflow for organizing academic groups and tracking mentoring activity.
 
-## Running locally
+The application supports university and department organization, batch creation and student/mentor assignments, mentor approval, mentoring-session scheduling, attendance, performance records, student feedback on mentors, notices, and notification preferences. Role-specific pages and server-side API handlers expose these workflows to authorized users.
 
-### 1. Install dependencies
+The initial configuration is seeded for Green University of Bangladesh's Artificial Intelligence and Data Science department. The data model uses university and department relationships to support expansion while keeping access scoped to the caller's organization.
+
+## Features by phase
+
+The table groups the capabilities represented in the current codebase into nine delivery areas. It is a feature map, not a claim that every listed area has a dedicated UI workflow or that each phase is a separate release.
+
+| Phase | Capability | Current coverage |
+|---|---|---|
+| **1 — Foundation and identity** | Student and mentor registration, email verification, login/logout, access-token refresh, password recovery, role-aware routing, and pending-approval state for mentors. | Implemented |
+| **2 — Academic organization** | University and department records, department-scoped batches, batch lifecycle/status, and student/mentor batch assignments. | Schema and management APIs/pages |
+| **3 — Mentor administration** | Admin and moderator review of mentor applications, approval/rejection with a reason, approval status, and audit history. | Implemented; authorization is scoped by role and organization |
+| **4 — Sessions and attendance** | Schedule mentoring sessions, record attendance, finalize records, and retain a reasoned edit history for corrections. | Schema, APIs, and session pages |
+| **5 — Performance and feedback** | Record student performance in simple or category mode; capture student evaluations of mentoring sessions and mentors. | Schema and APIs/reports |
+| **6 — Notices and communication** | Target notices to users, departments, batches, or all users; notification preferences; email templates; queued delivery logs and scheduled reminders. | Implemented, with external scheduler configuration required for scheduled dispatch |
+| **7 — Reporting and discovery** | Attendance and performance reports, mentor and student lookup, and role-specific dashboards. | Reporting/search APIs and role pages |
+| **8 — Application experience** | Responsive Next.js interface, Tailwind styling, reusable UI primitives, and dashboard/session/batch workflows. | Implemented in the current application |
+| **9 — Security hardening** | University/department authorization boundaries, safe same-origin redirects, HTTP-only token cookies, refresh-token version revocation, shared PostgreSQL rate limiting, Zod request validation, and generic error responses on the communication scheduler. | Implemented controls with automated regression tests; see [Security and compliance](#security-and-compliance) |
+
+### Roles
+
+| Role | Typical responsibilities |
+|---|---|
+| **Admin** | Manage academic resources and mentors within their university; review mentor applications across that university. |
+| **Moderator** | Manage and review work within the moderator's assigned department. |
+| **Mentor** | Work with assigned batches, manage mentoring sessions and attendance, and record student progress. |
+| **Student** | View their own mentoring/batch information and sessions, and provide session feedback where available. |
+
+The server is authoritative for role and scope checks. Public registration accepts student or mentor roles; privileged admin and moderator accounts are provisioned intentionally rather than self-assigned by a client.
+
+## Technology
+
+| Area | Technology |
+|---|---|
+| Web application | Next.js App Router, React, TypeScript |
+| Styling and UI | Tailwind CSS v4, reusable hand-built shadcn/ui-style primitives |
+| Icons and visualization | Lucide React, Recharts |
+| API | Next.js Route Handlers |
+| Input validation | Zod |
+| Database | PostgreSQL; configured for Neon-compatible connection strings |
+| ORM and driver | Prisma ORM with the PostgreSQL adapter and `pg` |
+| Authentication | Signed JWT access and refresh tokens in HTTP-only cookies |
+| Email | Nodemailer/SMTP or Resend; console provider for local development |
+| Hosting | Vercel-compatible Next.js deployment |
+
+**Implementation note:** Framer Motion and Multer are not dependencies in the current `package.json`. The current application also does not document a file-upload pipeline or a dark/light theme switch; those should be treated as future additions rather than installed capabilities.
+
+## Architecture
+
+The Next.js application serves both the web UI and API. Route Handlers call shared server-side services and Prisma, with authorization checks enforcing identity, role, and organization scope before sensitive records are accessed. PostgreSQL persists both application data and shared rate-limit state, which is important when requests are served by multiple serverless instances.
+
+```text
+Browser
+  ├── Next.js App Router pages and UI
+  └── Next.js Route Handlers
+        ├── Authentication, validation, and authorization
+        ├── Domain services (mentors, batches, sessions, notices, reports)
+        └── Prisma + PostgreSQL (Neon-compatible)
+
+External email provider  <── communication services / scheduled route
+External scheduler       ──> POST /api/cron/communication
+```
+
+### Data model
+
+The Prisma schema is the source of truth for the relational model. Important entities include:
+
+| Model | Purpose |
+|---|---|
+| `University`, `Department` | Organization hierarchy; departments belong to a university and carry department-level configuration such as the low-attendance threshold. |
+| `User` | Shared identity, login identifier, role, account status, password hash, and token version. |
+| `StudentProfile`, `MentorProfile`, `ModeratorProfile` | Role-specific profile data, department membership, moderator scope, and mentor approval state. |
+| `Batch`, `StudentBatch`, `MentorBatch` | Academic cohorts and many-to-many student/mentor assignments. |
+| `AttendanceSession`, `AttendanceRecord`, `AttendanceEditLog` | Scheduled sessions, per-student attendance, and an auditable correction trail. |
+| `PerformanceRecord`, `MentorEvaluation` | Student performance entries and student feedback about mentoring sessions. |
+| `Schedule` | Batch-level mentoring schedule entries. |
+| `Notice`, `Notification`, `NotificationPreference` | Targeted notices, user notifications, read state, and per-channel preferences. |
+| `EmailTemplate`, `EmailLog` | Editable message templates and delivery/deduplication history. |
+| `EmailVerificationToken`, `PasswordResetToken` | Hashed, expiring, single-use account-verification and password-reset tokens. |
+| `AuditLog`, `SecurityRateLimit` | Recorded administrative changes and database-backed rate limiting. |
+| `Remark` | Student/mentor remarks with resolution state and audit details. |
+
+### Project layout
+
+```text
+prisma/
+  migrations/                 Versioned database migrations
+  schema.prisma               Relational data model
+  seed.ts                     Green University/ADS and optional seed accounts
+src/
+  app/
+    (auth)/                    Login, registration, verification, password recovery
+    admin/                     Admin dashboards and management pages
+    mentor/                    Mentor dashboards, batches, sessions
+    moderator/                 Moderator dashboards and management pages
+    student/                   Student pages and session workflows
+    api/                       Authentication, management, reports, and cron routes
+  components/ui/               Reusable UI primitives
+  lib/auth/                    JWT, cookies, sessions, redirects, and guards
+  lib/security/                Rate limiting and security helpers
+  lib/services/                Application/domain services
+  lib/validation/              Zod validation schemas
+tests/
+  security.test.ts             Security regression tests
+```
+
+## Getting started
+
+### Prerequisites
+
+- Node.js **20.9 or later** (required by the Next.js version in this repository)
+- npm (the repository includes `package-lock.json`)
+- A PostgreSQL database; a Neon PostgreSQL project is a supported option
+- Git
+
+### 1. Clone and install
 
 ```bash
+git clone https://github.com/blithejisan/university-mentoring-platform.git
+cd university-mentoring-platform
 npm install
 ```
 
-### 2. Set up a Postgres database
+### 2. Configure local environment
 
-The free tier of [Neon](https://neon.tech) or
-[Supabase](https://supabase.com) both work well. Copy the connection
-string it gives you.
-
-### 3. Configure environment variables
+Copy the example file:
 
 ```bash
+# macOS / Linux
 cp .env.example .env
+
+# Windows PowerShell
+Copy-Item .env.example .env
 ```
 
-Fill in `DATABASE_URL` with your connection string, and generate two
-random secrets for `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET`:
+Set `DATABASE_URL` to the PostgreSQL connection string for your development database. For a serverless deployment, use the connection string appropriate for your Neon setup and runtime connection pattern. Generate distinct, high-entropy secrets for `JWT_ACCESS_SECRET` and `JWT_REFRESH_SECRET`; for example:
 
 ```bash
-openssl rand -base64 48
+node -e "console.log(require('node:crypto').randomBytes(48).toString('base64'))"
 ```
 
-For development, set `EMAIL_PROVIDER=smtp` and configure Gmail SMTP using
-an app password (never your normal Gmail password). Set `SMTP_HOST` to
-`smtp.gmail.com`, `SMTP_PORT` to `465`, `SMTP_USER` to the Gmail address,
-`SMTP_PASSWORD` to its app password, and `EMAIL_FROM_ADDRESS` to that
-sender address. Keep the credentials only in `.env`.
+Set `APP_URL` to the local app origin. Choose an email provider: `console` is useful for local development without delivery, while `smtp` and `resend` require provider credentials. For example:
 
-`EMAIL_PROVIDER=console` is safe for local form-flow checks but does not
-deliver messages; registration logs a failed email attempt. To use Resend,
-set `EMAIL_PROVIDER=resend`, `RESEND_API_KEY`, and `EMAIL_FROM_ADDRESS` to
-a sender address on a domain verified with Resend. The existing Resend
-adapter remains available for production.
+```dotenv
+DATABASE_URL="postgresql://USER:PASSWORD@HOST/DATABASE?sslmode=require"
+JWT_ACCESS_SECRET="replace-with-a-unique-random-secret"
+JWT_REFRESH_SECRET="replace-with-a-different-unique-random-secret"
+APP_URL="http://localhost:3000"
 
-Registration requires a personal email for verification and password
-recovery. University email is optional and stored separately from that
-verification address. `APP_URL` should be the app origin used in generated
-verification and password-reset links.
+EMAIL_PROVIDER="console"
+EMAIL_FROM_ADDRESS=""
+# For scheduled notice publishing and reminder dispatch:
+COMMUNICATION_CRON_SECRET="replace-with-a-unique-random-secret"
+```
 
-### 4. Generate the Prisma client and run the migration
+Do not commit `.env` or put server secrets in `NEXT_PUBLIC_*` variables.
+
+### 3. Apply migrations
+
+The repository includes versioned migrations. Generate the Prisma client and apply the migrations to your **development** database:
 
 ```bash
 npx prisma generate
-npx prisma migrate dev --name init
+npx prisma migrate dev
 ```
 
-> Run `prisma generate` after schema changes. Use `prisma migrate dev` only
-> for local development databases; production deployments use the migration
-> procedure described below.
+`npm install` also runs Prisma generation through the `postinstall` script. Use `migrate dev` only against a local/development database; use `npx prisma migrate deploy` for production after reviewing the migrations and following your database backup/recovery process. Do not use `prisma db push`, `migrate reset`, or development seeding as a production deployment procedure.
 
-### 5. Seed the first admin account + starter data
+### 4. Seed initial organization and optional accounts
 
-Registration only ever creates STUDENT or MENTOR accounts (by design —
-see the locked Phase 0 decisions), so the first ADMIN account, the Green
-University / ADS department rows, and the default email templates come
-from the seed script:
+Run the seed command to create the Green University of Bangladesh and ADS department rows and default email templates:
 
 ```bash
 npm run db:seed
 ```
 
-Seed users are created only when their corresponding `SEED_*` variables
-are explicitly configured. Admin requires `SEED_ADMIN_ID`,
-`SEED_ADMIN_EMAIL`, and `SEED_ADMIN_PASSWORD`; moderator requires
-`SEED_MODERATOR_ID`, `SEED_MODERATOR_EMAIL`, and
-`SEED_MODERATOR_PASSWORD`; mentor additionally requires
-`SEED_MENTOR_NAME`. Existing seed users are left unchanged.
+Seed accounts are optional. Configure a complete group of the corresponding `SEED_*` variables before running the command to create an admin, moderator, or mentor. The seed script leaves existing seed users unchanged. Never use sample or personal production credentials in source control.
 
-### 6. Run the dev server
+### 5. Start the application
 
 ```bash
 npm run dev
 ```
 
-Visit `http://localhost:3000`. Try registering as a student (goes
-straight to email verification → active) and as a mentor (verification →
-`PENDING_APPROVAL`, held at `/pending-approval` since the approve/reject
-screens are a later phase).
+Open [http://localhost:3000](http://localhost:3000). Student and mentor registrations require email verification; verified mentors also require approval before accessing mentor workflows.
 
 ## Environment variables
 
-See `.env.example` for variable names. In Vercel, configure
-`DATABASE_URL`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, and `APP_URL`
-under Project Settings → Environment Variables. Configure `COMMUNICATION_CRON_SECRET`
-when the communication scheduler is enabled. For email delivery, configure
-`EMAIL_PROVIDER` and `EMAIL_FROM_ADDRESS`, plus `RESEND_API_KEY` for Resend or
-`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, and `SMTP_PASSWORD` for SMTP. Keep these
-values server-side and never use `NEXT_PUBLIC_` prefixes. Seed variables are
-needed only when intentionally creating seed accounts. Never commit `.env` —
-it's covered by `.gitignore`.
+| Variable | Required | Description |
+|---|---:|---|
+| `DATABASE_URL` | Yes | PostgreSQL connection string used by Prisma's PostgreSQL adapter. |
+| `JWT_ACCESS_SECRET` | Yes | Secret used to sign access tokens. |
+| `JWT_REFRESH_SECRET` | Yes | Separate secret used to sign refresh tokens. |
+| `APP_URL` | Recommended | Public application origin used to construct verification, reset, and notification links; defaults to localhost for local use. |
+| `EMAIL_PROVIDER` | For email | `console`, `smtp`, or `resend`, depending on the intended delivery setup. |
+| `EMAIL_FROM_ADDRESS` | For email delivery | Sender address configured with the chosen provider. |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` | For SMTP | SMTP connection and authentication settings. |
+| `RESEND_API_KEY` | For Resend | API key for the Resend provider. |
+| `COMMUNICATION_CRON_SECRET` | For scheduler | Bearer secret required by `POST /api/cron/communication`. Keep this secret server-side. |
+| `SEED_ADMIN_ID`, `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD` | Optional | Complete set to seed an admin account. |
+| `SEED_MODERATOR_ID`, `SEED_MODERATOR_EMAIL`, `SEED_MODERATOR_PASSWORD` | Optional | Complete set to seed a moderator account. |
+| `SEED_MENTOR_ID`, `SEED_MENTOR_EMAIL`, `SEED_MENTOR_PASSWORD`, `SEED_MENTOR_NAME` | Optional | Complete set to seed a mentor account. |
 
-## Phase 6 communication scheduler
+**`DIRECT_URL` is not currently used by this repository.** Prisma configuration reads `DATABASE_URL` and the application creates its `pg` pool from the same variable. Do not assume that setting `DIRECT_URL` changes migration or runtime behavior.
 
-Apply the Phase 6 Prisma migration before running the application. Configure
-`COMMUNICATION_CRON_SECRET` and schedule an external job to send a `POST` to
-`/api/cron/communication` with `Authorization: Bearer <secret>` at least once
-every 15 minutes. The endpoint publishes due notices and sends reminders for
-scheduled `AttendanceSession` records within 24 hours of their start time.
-Configure `APP_URL` and the email provider for links and delivery. Repeated
-dispatches are deduplicated through `EmailLog`; failed delivery attempts are
-recorded and may be retried by a later run.
+### Email and scheduled communication
 
-### Phase 7 security migration
+To deliver email, choose `EMAIL_PROVIDER=smtp` and configure all SMTP settings, or choose `EMAIL_PROVIDER=resend` and configure `RESEND_API_KEY`. Set `EMAIL_FROM_ADDRESS` to a provider-authorized sender and `APP_URL` to the deployed origin.
 
-For production, take/confirm a Neon restore point before schema changes and
-verify recovery on an isolated Neon branch according to the project’s Neon
-plan and retention policy. Review pending SQL, then use the direct (non-pooled)
-Neon connection for:
+When using scheduled notices and session reminders, configure `COMMUNICATION_CRON_SECRET` and arrange an external scheduler to send a `POST` request to `/api/cron/communication` at least every 15 minutes:
+
+```http
+POST /api/cron/communication
+Authorization: Bearer <COMMUNICATION_CRON_SECRET>
+```
+
+The endpoint publishes due notices and dispatches reminders for upcoming sessions. Email logs and deduplication keys help avoid repeat deliveries. Without a configured secret and a scheduler, these scheduled dispatches will not run automatically.
+
+## Available scripts
+
+| Command | Description |
+|---|---|
+| `npm run dev` | Start the Next.js development server. |
+| `npm run build` | Create a production build. |
+| `npm run start` | Run the production build locally. |
+| `npm run lint` | Run ESLint. |
+| `npm run test:security` | Run the security regression suite. |
+| `npm run db:generate` | Generate the Prisma client. |
+| `npm run db:migrate` | Run `prisma migrate dev` for development databases. |
+| `npm run db:seed` | Seed the organization, default templates, and optionally configured users. |
+| `npm run db:studio` | Open Prisma Studio. |
+| `npx prisma studio` | Open Prisma Studio directly. |
+
+## Security and compliance
+
+Security-sensitive operations are implemented on the server. Current controls include:
+
+- Role-based access checks with university, department, batch, and user ownership boundaries where applicable.
+- Mentor approval and assignment checks before mentor access to protected workflows.
+- Access and refresh tokens stored in HTTP-only cookies; cookies are `Secure` in production and use `SameSite=Lax`.
+- Per-user token versioning to invalidate superseded sessions, including logout and password-reset invalidation.
+- PostgreSQL-backed rate-limit state shared between application instances.
+- Safe same-origin redirect validation to prevent open redirects.
+- Zod schemas for request validation, including registration and authentication payloads.
+- Timing-safe bearer-secret comparison for the communication scheduler endpoint.
+- Automated checks for organization isolation, access control, session invalidation, rate limiting, cron authorization, safe redirects, and notification filtering.
+
+### Automated security test result
+
+The focused security suite was run from this repository with `npm run test:security`:
+
+```text
+tests 17
+pass  17
+fail  0
+```
+
+This result describes the repository's automated regression tests only. It is not a claim of independent penetration testing, formal certification, or a guarantee that the application is free of vulnerabilities. Re-run the suite after security-related changes:
 
 ```bash
-npx prisma migrate status
-npx prisma migrate deploy
-npx prisma migrate status
+npm run test:security
 ```
 
-Do not use `prisma db push`, `migrate reset`, or `prisma seed` for production
-deployments. Existing databases that predate Prisma migration tracking must
-have their already-present migrations baselined with `migrate resolve --applied`
-only after read-only schema comparison; never baseline a migration whose schema
-changes are absent. The Phase 7 migration adds per-user refresh-token versions
-and a shared PostgreSQL rate-limit table for use across Vercel instances.
+## Production deployment
 
-Deploy the application only after the migration succeeds and required server
-environment variables are present in Vercel Project Settings. Vercel builds
-generate the Prisma client through `postinstall`. Configure the external
-communication scheduler to `POST /api/cron/communication` with
-`Authorization: Bearer <COMMUNICATION_CRON_SECRET>` at least every 15 minutes.
-For delivery, use `EMAIL_PROVIDER=smtp` with the SMTP variables or
-`EMAIL_PROVIDER=resend` with `RESEND_API_KEY`; configure `EMAIL_FROM_ADDRESS`
-and `APP_URL` in either case.
+The application can be deployed to Vercel as a Next.js project. Before deploying:
 
-## Project structure
+1. Provision PostgreSQL and configure the production `DATABASE_URL`.
+2. Review and apply checked-in migrations with `npx prisma migrate deploy` using the production deployment process.
+3. Configure both JWT secrets, `APP_URL`, and email-provider settings in Vercel's server-side environment variables.
+4. Configure `COMMUNICATION_CRON_SECRET` and an external scheduler if scheduled communication is required.
+5. Configure optional seed variables only if intentionally provisioning seed accounts; avoid production seeding as a routine deploy step.
+6. Run the security regression suite and production build in CI or before release.
 
-```
-prisma/schema.prisma       Full data model (all Phase 0 entities)
-prisma/seed.ts              University/department/admin/email-template seed
-src/app/(auth)/...          Login, register, forgot/reset password, verify-email
-src/app/admin|mentor|moderator|student/dashboard  Role dashboards (Phase 1 placeholders)
-src/app/pending-approval    Holding page for unapproved mentors
-src/app/api/auth/...        Auth route handlers (register, login, logout, refresh, ...)
-src/app/api/departments     Public department list (registration form)
-src/app/api/me              Current-session user info
-src/lib/auth/               Password hashing, JWT, cookies, session, guards, tokens
-src/lib/email/              Provider-agnostic sender + DB-backed template rendering
-src/lib/validation/         Zod schemas for auth request bodies
-src/middleware.ts           Coarse route protection (real checks happen server-side)
-src/components/ui/          Hand-built shadcn/ui-style primitives
-```
+Take a database restore point before production schema changes and verify your recovery procedure independently. Keep credentials out of logs, client bundles, and source control.
 
-## Known issues / decisions for review
+## Contributing
 
-- `prisma generate`/`migrate` were not run in the build environment (no
-  network access to Prisma's engine binaries there) — run them yourself
-  per step 4 above before first use.
-- Moderator accounts (like admin) aren't created via public registration
-  — the seed script creates a test moderator scoped to ADS
-  (`SEED_MODERATOR_ID`). An "admin manages
-  moderators" UI is a later-phase addition.
-- The mentor approval workflow (admin: any department in their university; moderator:
-  own-department only; approve/reject with mandatory reason on reject;
-  audit log; approval/rejection email) is implemented — see the phase
-  summary for the full authorization walkthrough.
-- "View mentor details" is currently inline on the pending-mentors list
-  (ID, email, department, registration date) rather than a separate
-  detail page — flag if you want a dedicated `/mentors/[id]` view.
+1. Create a branch for your change.
+2. Keep authorization and validation in server-side code; do not rely on UI visibility to enforce permissions.
+3. Add or update focused tests for behavioral or security changes.
+4. Run `npm run lint`, `npm run test:security`, and `npm run build` as applicable before opening a pull request.
+
+## License
+
+No license is specified in this repository. Contact the project maintainer before reusing or redistributing the code.
