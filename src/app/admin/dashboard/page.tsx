@@ -30,12 +30,12 @@ export default async function AdminDashboardPage() {
     <div className="page-enter space-y-7">
       
       {/* Top Header & Welcome Banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#102944] to-[#193b5d] p-6 text-white shadow-lg shadow-slate-900/10 border border-[#244969] sm:p-8">
+      <div className="ai-neural-hero relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#102944] to-[#193b5d] p-6 text-white shadow-lg shadow-slate-900/10 sm:p-8">
         
         <div className="relative z-10 flex flex-col items-start justify-between gap-6 md:flex-row md:items-center">
           <div className="max-w-2xl space-y-3">
             <div className="inline-flex items-center gap-2 rounded-md border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold text-slate-100">
-              <span className="size-2 rounded-full bg-emerald-400" />
+              <span className="ai-active-dot size-2 rounded-full" />
               <span>ADS Department Active Portal</span>
             </div>
             <h1 className="text-2xl font-bold leading-tight sm:text-3xl">

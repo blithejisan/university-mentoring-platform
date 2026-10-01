@@ -79,7 +79,7 @@ type ActivityRow = {
 
 function SummaryCard({ label, value, detail }: { label: string; value: number; detail: string }) {
   return (
-    <Card className="rounded-md shadow-none">
+    <Card className="ai-neon-card rounded-md shadow-none">
       <CardContent className="p-4">
         <p className="text-sm font-medium text-muted-foreground">{label}</p>
         <p className="mt-1 text-2xl font-semibold tabular-nums text-slate-900">{value}</p>
