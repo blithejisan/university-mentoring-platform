@@ -12,17 +12,37 @@ export function Navbar() {
   const pathname = usePathname();
   const isPendingApproval = pathname.startsWith("/pending-approval");
   const roleRoot = isPendingApproval ? "mentor" : pathname.split("/")[1];
-  const roleRoutes: Record<string, { dashboard: string; batches: string; mentors?: string }> = {
-    admin: { dashboard: "/admin/dashboard", batches: "/admin/batches", mentors: "/admin/mentors" },
-    moderator: { dashboard: "/moderator/dashboard", batches: "/moderator/batches", mentors: "/moderator/mentors" },
-    mentor: { dashboard: "/mentor/dashboard", batches: "/mentor/batches", mentors: "/mentor/mentors" },
-    student: { dashboard: "/student/dashboard", batches: "/student/batches" },
+  const roleRoutes: Record<string, { dashboard: string; batches: string; sessions: string; mentors?: string }> = {
+    admin: {
+      dashboard: "/admin/dashboard",
+      batches: "/admin/batches",
+      sessions: "/admin/dashboard#sessions",
+      mentors: "/admin/mentors",
+    },
+    moderator: {
+      dashboard: "/moderator/dashboard",
+      batches: "/moderator/batches",
+      sessions: "/moderator/dashboard#sessions",
+      mentors: "/moderator/mentors",
+    },
+    mentor: {
+      dashboard: "/mentor/dashboard",
+      batches: "/mentor/batches",
+      sessions: "/mentor/sessions",
+      mentors: "/mentor/mentors",
+    },
+    student: {
+      dashboard: "/student/dashboard",
+      batches: "/student/batches",
+      sessions: "/student/dashboard#sessions",
+    },
   };
   const routes = roleRoutes[roleRoot];
   const navItems = routes && !isPendingApproval
     ? [
         { name: "Dashboard", href: routes.dashboard },
         { name: "Batches", href: routes.batches },
+        { name: "Sessions", href: routes.sessions },
         ...(roleRoot === "student" ? [{ name: "Lab Report Generator", href: "/student/lab-report-generator" }] : []),
         ...(routes.mentors ? [{ name: "Mentors", href: routes.mentors }] : []),
       ]

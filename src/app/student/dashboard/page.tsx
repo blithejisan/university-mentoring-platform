@@ -53,7 +53,7 @@ export default async function StudentDashboardPage() {
         <StudentNoticesView />
       </div>
 
-      <div className="border-t border-slate-200 pt-6">
+      <div id="sessions" className="scroll-mt-4 border-t border-slate-200 pt-6">
         <StudentSessionsOverview batches={currentBatches.map(({ batch }) => batch)} />
       </div>
 
@@ -79,4 +79,3 @@ export default async function StudentDashboardPage() {
     </div>
   );
 }
-

@@ -31,8 +31,10 @@ export default async function ModeratorDashboardPage() {
 
       <DepartmentAttendanceOverviewCard />
 
-      <SessionMonitoringDashboard role="MODERATOR" />
-      <ScopedUpcomingSessions role="MODERATOR" />
+      <section id="sessions" className="scroll-mt-4 space-y-7">
+        <SessionMonitoringDashboard role="MODERATOR" />
+        <ScopedUpcomingSessions role="MODERATOR" />
+      </section>
       <BatchPerformanceReport role="MODERATOR" />
 
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2">

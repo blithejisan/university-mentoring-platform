@@ -49,8 +49,10 @@ export default async function AdminDashboardPage() {
         </div>
       </div>
 
-      <SessionMonitoringDashboard role="ADMIN" />
-      <ScopedUpcomingSessions role="ADMIN" />
+      <section id="sessions" className="scroll-mt-4 space-y-7">
+        <SessionMonitoringDashboard role="ADMIN" />
+        <ScopedUpcomingSessions role="ADMIN" />
+      </section>
       <DepartmentAttendanceOverviewCard departments={departments} />
       <BatchPerformanceReport role="ADMIN" />
 
