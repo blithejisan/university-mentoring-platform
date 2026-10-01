@@ -21,7 +21,7 @@ export default async function ModeratorDashboardPage() {
   });
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-7">
+    <div className="page-enter mx-auto flex w-full max-w-7xl flex-col gap-7">
       <div className="flex flex-col items-start justify-between gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-center">
         <div>
           <p className="text-sm font-medium text-[#34724f]">Moderator portal</p>

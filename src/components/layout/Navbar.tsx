@@ -49,7 +49,7 @@ export function Navbar() {
     : [];
 
   return (
-    <header className="w-full border-b border-slate-200 bg-white px-4 py-3 sm:px-6 lg:px-8">
+    <header className="sticky top-0 z-40 w-full border-b border-white/70 bg-white/90 px-4 py-3 shadow-sm shadow-slate-900/[0.03] backdrop-blur-md sm:px-6 lg:px-8">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-5 gap-y-3">
         
         {/* Left Side: Brand Logo & Updated Title */}
@@ -92,12 +92,12 @@ export function Navbar() {
               <Link
                 key={item.name}
                 href={item.href}
-                className={`inline-flex h-9 items-center whitespace-nowrap rounded-md border px-2.5 text-xs font-semibold transition-colors sm:px-3 sm:text-sm ${
+                className={`inline-flex h-9 items-center whitespace-nowrap rounded-md border px-2.5 text-xs font-semibold transition-all duration-200 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 sm:px-3 sm:text-sm ${
                   isFeatured
                     ? "lab-generator-link gap-1.5"
                     : pathname === item.href || pathname.startsWith(`${item.href}/`)
-                    ? "border-[#cfe1d2] bg-[#eaf3e9] text-[#205b3d]"
-                    : "border-transparent text-slate-600 hover:border-[#dce5dc] hover:bg-[#f5f8f3] hover:text-[#21382d]"
+                    ? "border-[#cfe1d2] bg-[#eaf3e9] text-[#205b3d] shadow-[0_0_12px_rgba(33,97,63,0.08)]"
+                    : "border-transparent text-slate-600 hover:-translate-y-0.5 hover:border-[#dce5dc] hover:bg-[#f5f8f3] hover:text-[#21382d]"
                 }`}
               >
                 {isFeatured && <FlaskConical aria-hidden="true" className="size-3.5" />}

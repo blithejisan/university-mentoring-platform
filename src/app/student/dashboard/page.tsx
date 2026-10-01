@@ -21,7 +21,7 @@ export default async function StudentDashboardPage() {
   });
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-7">
+    <div className="page-enter mx-auto flex w-full max-w-7xl flex-col gap-7">
       <div className="flex flex-col items-start justify-between gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-center">
         <div>
           <p className="text-sm font-medium text-[#34724f]">Student portal</p>
@@ -29,7 +29,7 @@ export default async function StudentDashboardPage() {
         </div>
       </div>
 
-      <section className="flex flex-col gap-4 rounded-lg border border-[#dce8d8] bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:px-5">
+      <section className="flex flex-col gap-4 rounded-lg border border-[#dce8d8] bg-white/90 p-4 shadow-sm backdrop-blur-md transition-all duration-200 hover:border-primary/30 hover:shadow-[0_0_15px_rgba(33,97,63,0.08)] sm:flex-row sm:items-center sm:justify-between sm:px-5">
         <div className="flex items-start gap-3">
           <span className="flex size-10 shrink-0 items-center justify-center rounded-md border border-lime-200 bg-lime-50 text-lime-700">
             <FlaskConical aria-hidden="true" className="size-5" />
