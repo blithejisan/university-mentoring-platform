@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { AuthError, requireMentorOwnsBatch, requireModeratorOwnsDepartment, requireStudentIsSelf } from "@/lib/auth/guards";
 import type { AccessTokenPayload } from "@/lib/auth/jwt";
 import { reportDateWhere, type ReportFilters } from "@/lib/validation/report-filters";
+import { compareStudentIds } from "@/lib/student-sorting";
 
 export interface StudentAttendanceSummary {
   studentId: string;
@@ -272,6 +273,7 @@ export async function getBatchAttendanceReport(
     include: {
       department: true,
       studentBatches: {
+        orderBy: { student: { user: { universityIdNumber: "asc" } } },
         include: {
           student: {
             include: { user: true, department: { select: { universityId: true } } },
@@ -370,6 +372,7 @@ export async function getBatchAttendanceReport(
 
   const batchAverage =
     studentRows.length === 0 ? 100 : Math.round(sumPercentages / studentRows.length);
+  studentRows.sort((a, b) => compareStudentIds(a.universityIdNumber, b.universityIdNumber));
 
   return {
     batchId: batch.id,
@@ -483,6 +486,9 @@ export async function getDepartmentAttendanceOverview(
       }
     }
   }
+  lowAttendanceStudents.sort((a, b) =>
+    compareStudentIds(a.universityIdNumber, b.universityIdNumber)
+  );
 
   const mentors = await prisma.mentorProfile.findMany({
     where: { departmentId: department.id },

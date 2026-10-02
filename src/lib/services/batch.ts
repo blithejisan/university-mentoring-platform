@@ -5,6 +5,7 @@ import type { AddStudentByIdInput, CreateBatchInput, CreateMentorBatchInput, Imp
 import { writeAuditLog } from "@/lib/audit";
 import { hashPassword } from "@/lib/auth/password";
 import { randomBytes } from "node:crypto";
+import { compareStudentIds } from "@/lib/student-sorting";
 
 export async function createBatch(actor: AccessTokenPayload, input: CreateBatchInput) {
   if (actor.role !== "ADMIN" && actor.role !== "MODERATOR") {
@@ -225,7 +226,10 @@ export async function getBatchDetails(actor: AccessTokenPayload, batchId: string
             },
           },
         },
-        orderBy: { joinedAt: "asc" },
+        orderBy: [
+          { student: { user: { universityIdNumber: "asc" } } },
+          { joinedAt: "asc" },
+        ],
       },
       mentorBatches: {
         include: {
@@ -248,6 +252,9 @@ export async function getBatchDetails(actor: AccessTokenPayload, batchId: string
   });
 
   if (!batch) throw new AuthError("Batch not found.", 404);
+  batch.studentBatches.sort((a, b) =>
+    compareStudentIds(a.student.user.universityIdNumber, b.student.user.universityIdNumber)
+  );
   return batch;
 }
 
@@ -397,7 +404,11 @@ export async function importStudentsFromSpreadsheet(actor: AccessTokenPayload, b
 
   const seenStudentIds = new Set<string>();
 
-  for (const row of rows) {
+  const sortedRows = [...rows].sort((a, b) =>
+    compareStudentIds(a.universityIdNumber.trim(), b.universityIdNumber.trim())
+  );
+
+  for (const row of sortedRows) {
     const studentId = row.universityIdNumber.trim();
 
     if (seenStudentIds.has(studentId)) {
@@ -597,8 +608,10 @@ export async function searchStudents(
         select: { batch: { select: { id: true, name: true } } },
       },
     },
-    take: 50,
+    orderBy: { user: { universityIdNumber: "asc" } },
   });
 
-  return students;
+  return students
+    .sort((a, b) => compareStudentIds(a.user.universityIdNumber, b.user.universityIdNumber))
+    .slice(0, 50);
 }

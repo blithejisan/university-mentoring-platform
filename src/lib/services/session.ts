@@ -6,6 +6,7 @@ import type { Prisma } from "@prisma/client";
 import { writeAuditLog } from "@/lib/audit";
 import { createUserNotifications, sendTemplatedEmailToUsers } from "@/lib/services/notification";
 import { getAppUrl } from "@/lib/app-url";
+import { compareStudentIds } from "@/lib/student-sorting";
 
 function sessionMembershipEligibility(session: { date: Date; startTime: Date | null }): Prisma.StudentBatchWhereInput {
   if (session.startTime) {
@@ -350,6 +351,7 @@ export async function getSessionDetails(actor: AccessTokenPayload, sessionId: st
       },
       mentor: { select: { id: true, universityIdNumber: true, email: true } },
       attendanceRecords: {
+        orderBy: { student: { user: { universityIdNumber: "asc" } } },
         include: {
           student: {
             include: { user: true },
@@ -366,6 +368,9 @@ export async function getSessionDetails(actor: AccessTokenPayload, sessionId: st
   });
 
   if (!session) throw new AuthError("Session not found.", 404);
+  session.attendanceRecords.sort((a, b) =>
+    compareStudentIds(a.student.user.universityIdNumber, b.student.user.universityIdNumber)
+  );
 
   // Check batch authorization
   await requireMentorOwnsBatch(actor, session.batchId);
@@ -381,11 +386,14 @@ export async function getSessionDetails(actor: AccessTokenPayload, sessionId: st
         include: { user: true },
       },
     },
+    orderBy: { student: { user: { universityIdNumber: "asc" } } },
   });
 
   return {
     session,
-    batchStudents: batchStudents.map((sb) => sb.student),
+    batchStudents: batchStudents
+      .map((sb) => sb.student)
+      .sort((a, b) => compareStudentIds(a.user.universityIdNumber, b.user.universityIdNumber)),
   };
 }
 

@@ -10,6 +10,7 @@ import { ModalPortal } from "@/components/ui/modal-portal";
 import { SessionList } from "@/components/session-management";
 import { BatchAttendanceReportView } from "@/components/batch-attendance-report";
 import { PerformanceEntryModal } from "@/components/performance-entry-modal";
+import { compareStudentIds } from "@/lib/student-sorting";
 
 interface Student {
   userId: string;
@@ -314,7 +315,7 @@ export function BatchDetailsView({ batchId, userRole }: Props) {
           };
         });
 
-        setImportRows(previewRows);
+        setImportRows(previewRows.sort((a, b) => compareStudentIds(a.studentId, b.studentId)));
       } catch (error: unknown) {
         setImportPreviewError(error instanceof Error ? error.message : "The selected file could not be processed.");
         setImportRows([]);
