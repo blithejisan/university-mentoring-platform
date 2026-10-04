@@ -59,15 +59,17 @@ export default async function MentorDashboardPage() {
         </Card>
       </div>
 
-      <div className="border-t border-slate-200 pt-6">
+      <div id="notices" className="scroll-mt-4 border-t border-slate-200 pt-6">
         <MentorNoticesManagement />
       </div>
 
-      <div className="border-t border-slate-200 pt-6">
+      <div id="remarks" className="scroll-mt-4 border-t border-slate-200 pt-6">
         <MentorRemarksManagement />
       </div>
 
-      <BatchPerformanceReport role="MENTOR" />
+      <section id="batch-performance" className="scroll-mt-4">
+        <BatchPerformanceReport role="MENTOR" />
+      </section>
 
       <div className="border-t border-slate-200 pt-6">
         <MentorEvaluationsDashboard />

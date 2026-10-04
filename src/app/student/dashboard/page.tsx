@@ -48,7 +48,7 @@ export default async function StudentDashboardPage() {
       </section>
 
       {/* Notices */}
-      <div>
+      <div id="notices" className="scroll-mt-4">
         <StudentNoticesView />
       </div>
 
@@ -67,7 +67,7 @@ export default async function StudentDashboardPage() {
       </div>
 
       {/* Remarks */}
-      <div className="border-t border-slate-200 pt-6">
+      <div id="remarks" className="scroll-mt-4 border-t border-slate-200 pt-6">
         <StudentRemarksView />
       </div>
     </div>

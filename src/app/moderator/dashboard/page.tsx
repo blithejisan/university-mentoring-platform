@@ -35,7 +35,9 @@ export default async function ModeratorDashboardPage() {
         <SessionMonitoringDashboard role="MODERATOR" />
         <ScopedUpcomingSessions role="MODERATOR" />
       </section>
-      <BatchPerformanceReport role="MODERATOR" />
+      <section id="batch-performance" className="scroll-mt-4">
+        <BatchPerformanceReport role="MODERATOR" />
+      </section>
 
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
         <Card className="ai-neon-card">
@@ -67,7 +69,7 @@ export default async function ModeratorDashboardPage() {
         </Card>
       </div>
 
-      <div className="border-t border-slate-200 pt-6">
+      <div id="notices" className="scroll-mt-4 border-t border-slate-200 pt-6">
         <AdminNoticesManagement
           role="MODERATOR"
           scopedDepartmentId={modProfile?.departmentId}

@@ -54,7 +54,9 @@ export default async function AdminDashboardPage() {
         <ScopedUpcomingSessions role="ADMIN" />
       </section>
       <DepartmentAttendanceOverviewCard departments={departments} />
-      <BatchPerformanceReport role="ADMIN" />
+      <section id="batch-performance" className="scroll-mt-4">
+        <BatchPerformanceReport role="ADMIN" />
+      </section>
 
       {/* Quick Action Navigation Cards */}
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
@@ -112,7 +114,7 @@ export default async function AdminDashboardPage() {
       </div>
 
       {/* University Notices Oversight */}
-      <div className="space-y-4 rounded-xl border border-slate-200 bg-white/90 p-5 shadow-sm backdrop-blur-md sm:p-6">
+      <div id="notices" className="scroll-mt-4 space-y-4 rounded-xl border border-slate-200 bg-white/90 p-5 shadow-sm backdrop-blur-md sm:p-6">
         <AdminNoticesManagement role="ADMIN" />
       </div>
 
