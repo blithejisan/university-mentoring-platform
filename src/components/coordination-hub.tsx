@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Check, ChevronDown, ChevronUp, MessageSquare, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,6 +21,7 @@ type Announcement = {
 type StudentOption = {
   id: string;
   batchId: string;
+  batchName: string;
   name: string | null;
   universityIdNumber: string;
 };
@@ -66,7 +67,6 @@ export function CoordinationHub({ role }: { role: HubRole }) {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [supportNotes, setSupportNotes] = useState<SupportNote[]>([]);
   const [batches, setBatches] = useState<Batch[]>([]);
-  const [students, setStudents] = useState<StudentOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [announcementTitle, setAnnouncementTitle] = useState("");
@@ -76,6 +76,11 @@ export function CoordinationHub({ role }: { role: HubRole }) {
   const [noteMessage, setNoteMessage] = useState("");
   const [noteBatchId, setNoteBatchId] = useState("");
   const [noteStudentId, setNoteStudentId] = useState("");
+  const [studentSearch, setStudentSearch] = useState("");
+  const [studentResults, setStudentResults] = useState<StudentOption[]>([]);
+  const [selectedStudent, setSelectedStudent] = useState<StudentOption | null>(null);
+  const [searchingStudents, setSearchingStudents] = useState(false);
+  const [studentSearchError, setStudentSearchError] = useState<string | null>(null);
   const [submittingAnnouncement, setSubmittingAnnouncement] = useState(false);
   const [submittingNote, setSubmittingNote] = useState(false);
   const [expandedNoteId, setExpandedNoteId] = useState<string | null>(null);
@@ -84,11 +89,6 @@ export function CoordinationHub({ role }: { role: HubRole }) {
   const [commentDraft, setCommentDraft] = useState("");
   const [sendingComment, setSendingComment] = useState(false);
   const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
-
-  const selectedBatchStudents = useMemo(
-    () => students.filter((student) => student.batchId === noteBatchId),
-    [students, noteBatchId]
-  );
 
   const loadHub = useCallback(async () => {
     setLoading(true);
@@ -105,12 +105,10 @@ export function CoordinationHub({ role }: { role: HubRole }) {
       const supportPayload = await readResponse<{
         supportNotes: SupportNote[];
         batches: Batch[];
-        students: StudentOption[];
       }>(supportResponse, "Unable to load batch support notes.");
       setAnnouncements(announcementPayload.announcements);
       setSupportNotes(supportPayload.supportNotes);
       setBatches(supportPayload.batches);
-      setStudents(supportPayload.students);
       setNoteBatchId((current) => current || supportPayload.batches[0]?.id || "");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to load the coordination hub.");
@@ -122,6 +120,46 @@ export function CoordinationHub({ role }: { role: HubRole }) {
   useEffect(() => {
     void loadHub();
   }, [loadHub]);
+
+  useEffect(() => {
+    const query = studentSearch.trim();
+    if (query.length < 2 || selectedStudent) {
+      setStudentResults([]);
+      setSearchingStudents(false);
+      setStudentSearchError(null);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeout = window.setTimeout(async () => {
+      setSearchingStudents(true);
+      setStudentSearchError(null);
+      try {
+        const response = await fetch(
+          `/api/coordination/students?q=${encodeURIComponent(query)}`,
+          { signal: controller.signal }
+        );
+        const payload = await readResponse<{ students: StudentOption[] }>(
+          response,
+          "Unable to search students."
+        );
+        setStudentResults(payload.students);
+      } catch (cause) {
+        if (cause instanceof Error && cause.name === "AbortError") return;
+        setStudentSearchError(
+          cause instanceof Error ? cause.message : "Unable to search students."
+        );
+        setStudentResults([]);
+      } finally {
+        if (!controller.signal.aborted) setSearchingStudents(false);
+      }
+    }, 250);
+
+    return () => {
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [studentSearch, selectedStudent]);
 
   async function createAnnouncement(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -175,6 +213,9 @@ export function CoordinationHub({ role }: { role: HubRole }) {
       setNoteTitle("");
       setNoteMessage("");
       setNoteStudentId("");
+      setStudentSearch("");
+      setSelectedStudent(null);
+      setStudentResults([]);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to create support note.");
     } finally {
@@ -271,10 +312,12 @@ export function CoordinationHub({ role }: { role: HubRole }) {
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
-      <header className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-cyan-50 p-6 shadow-sm">
-        <p className="text-sm font-semibold text-emerald-700">{role === "MENTOR" ? "Mentor workspace" : "Moderator workspace"}</p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">Coordination Hub</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+      <header className="rounded-2xl bg-slate-900/80 border border-slate-800 p-6 text-slate-100 shadow-sm">
+        <span className="inline-flex rounded-full border border-slate-700 bg-slate-800 px-3 py-1 text-xs font-semibold text-emerald-300">
+          {role === "MENTOR" ? "Mentor workspace" : "Moderator workspace"}
+        </span>
+        <h1 className="mt-3 text-2xl font-semibold tracking-tight text-white">Coordination Hub</h1>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
           Share guidance, keep batch teams in sync, and work through student support together.
         </p>
       </header>
@@ -384,21 +427,87 @@ export function CoordinationHub({ role }: { role: HubRole }) {
               <form className="space-y-4" onSubmit={(event) => void createSupportNote(event)}>
                 <div className="space-y-1.5">
                   <Label htmlFor="coord-note-batch">Batch</Label>
-                  <select id="coord-note-batch" value={noteBatchId} onChange={(event) => { setNoteBatchId(event.target.value); setNoteStudentId(""); }} className="h-10 w-full rounded-md border border-input bg-card px-3 text-sm text-foreground" required>
+                  <select id="coord-note-batch" value={noteBatchId} onChange={(event) => {
+                    setNoteBatchId(event.target.value);
+                    setNoteStudentId("");
+                    setSelectedStudent(null);
+                    setStudentSearch("");
+                    setStudentResults([]);
+                  }} className="h-10 w-full rounded-md border border-input bg-card px-3 text-sm text-foreground" required>
                     {batches.length === 0 && <option value="">No batches available</option>}
                     {batches.map((batch) => <option key={batch.id} value={batch.id}>{batch.name}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="coord-note-student">Student (optional)</Label>
-                  <select id="coord-note-student" value={noteStudentId} onChange={(event) => setNoteStudentId(event.target.value)} className="h-10 w-full rounded-md border border-input bg-card px-3 text-sm text-foreground" disabled={!noteBatchId}>
-                    <option value="">Batch-wide note</option>
-                    {selectedBatchStudents.map((student) => (
-                      <option key={student.id} value={student.id}>
-                        {student.name || "Student"} · {student.universityIdNumber}
-                      </option>
-                    ))}
-                  </select>
+                  <Label htmlFor="coord-student-search">Student (optional)</Label>
+                  <Input
+                    id="coord-student-search"
+                    value={studentSearch}
+                    onChange={(event) => {
+                      setStudentSearch(event.target.value);
+                      setNoteStudentId("");
+                      setSelectedStudent(null);
+                      setStudentResults([]);
+                      setStudentSearchError(null);
+                    }}
+                    placeholder="Search by student ID or name"
+                    autoComplete="off"
+                    role="combobox"
+                    aria-autocomplete="list"
+                    aria-expanded={studentResults.length > 0 && !selectedStudent}
+                    aria-controls="coord-student-search-results"
+                    aria-describedby="coord-student-search-hint"
+                    maxLength={100}
+                  />
+                  <p id="coord-student-search-hint" className="text-xs text-slate-500">
+                    Search across your accessible batches. Selecting a student also selects their batch.
+                  </p>
+                  {searchingStudents && (
+                    <p className="text-sm text-slate-500" role="status">Searching students...</p>
+                  )}
+                  {studentSearchError && (
+                    <p className="text-sm text-rose-700" role="alert">{studentSearchError}</p>
+                  )}
+                  {!searchingStudents && !studentSearchError && studentSearch.trim().length >= 2 &&
+                    !selectedStudent && studentResults.length === 0 && (
+                      <p className="text-sm text-slate-500" role="status">No active students found in your batches.</p>
+                    )}
+                  {studentResults.length > 0 && !selectedStudent && (
+                    <ul
+                      id="coord-student-search-results"
+                      role="listbox"
+                      aria-label="Matching students"
+                      className="max-h-56 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-sm"
+                    >
+                      {studentResults.map((student, index) => (
+                        <li key={`${student.id}-${student.batchId}`} role="presentation">
+                          <button
+                            type="button"
+                            role="option"
+                            aria-selected={false}
+                            onClick={() => {
+                              setSelectedStudent(student);
+                              setNoteStudentId(student.id);
+                              setNoteBatchId(student.batchId);
+                              setStudentSearch(
+                                `${student.name || "Student"} · ${student.universityIdNumber}`
+                              );
+                              setStudentResults([]);
+                            }}
+                            className={`w-full px-3 py-2 text-left text-sm text-slate-800 hover:bg-emerald-50 focus-visible:bg-emerald-50 focus-visible:outline-none ${index > 0 ? "border-t border-slate-100" : ""}`}
+                          >
+                            <span className="block font-medium">{student.name || "Student"} · {student.universityIdNumber}</span>
+                            <span className="block text-xs text-slate-500">{student.batchName}</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {selectedStudent && (
+                    <p className="text-xs font-medium text-emerald-700" role="status">
+                      Student linked to {selectedStudent.batchName}.
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="coord-note-title">Subject</Label>

@@ -147,43 +147,21 @@ export async function createCoordinationAnnouncement(
 
 export async function listCoordinationSupportNotes(actor: AccessTokenPayload) {
   const scope = await getCoordinationScope(actor);
-  const [supportNotes, enrollments] = await Promise.all([
-    prisma.coordinationSupportNote.findMany({
-      where: { batchId: { in: scope.batchIds } },
-      include: {
-        batch: { select: { id: true, name: true } },
-        student: {
-          select: {
-            departmentId: true,
-            user: { select: { name: true, universityId: true } },
-          },
-        },
-        createdBy: { select: { name: true, role: true } },
-        _count: { select: { comments: true } },
-      },
-      orderBy: { updatedAt: "desc" },
-    }),
-    prisma.studentBatch.findMany({
-      where: {
-        batchId: { in: scope.batchIds },
-        leftAt: null,
-        student: {
-          departmentId: scope.departmentId,
-          user: { status: "ACTIVE", universityId: scope.universityId },
+  const supportNotes = await prisma.coordinationSupportNote.findMany({
+    where: { batchId: { in: scope.batchIds } },
+    include: {
+      batch: { select: { id: true, name: true } },
+      student: {
+        select: {
+          departmentId: true,
+          user: { select: { name: true, universityId: true } },
         },
       },
-      select: {
-        batchId: true,
-        studentId: true,
-        student: {
-          select: {
-            user: { select: { name: true, universityIdNumber: true } },
-          },
-        },
-      },
-      orderBy: { student: { user: { name: "asc" } } },
-    }),
-  ]);
+      createdBy: { select: { name: true, role: true } },
+      _count: { select: { comments: true } },
+    },
+    orderBy: { updatedAt: "desc" },
+  });
   return {
     supportNotes: supportNotes.map((note) => ({
       ...note,
@@ -194,13 +172,62 @@ export async function listCoordinationSupportNotes(actor: AccessTokenPayload) {
           : null,
     })),
     batches: scope.batches,
-    students: enrollments.map(({ batchId, studentId, student }) => ({
-      batchId,
+  };
+}
+
+export async function searchCoordinationStudents(
+  actor: AccessTokenPayload,
+  query: string
+) {
+  const scope = await getCoordinationScope(actor);
+  const normalizedQuery = query.trim();
+  if (normalizedQuery.length < 2 || scope.batchIds.length === 0) return [];
+
+  return prisma.studentBatch.findMany({
+    where: {
+      batchId: { in: scope.batchIds },
+      leftAt: null,
+      student: {
+        departmentId: scope.departmentId,
+        user: {
+          status: "ACTIVE",
+          universityId: scope.universityId,
+          role: "STUDENT",
+          OR: [
+            { universityIdNumber: { contains: normalizedQuery, mode: "insensitive" } },
+            { name: { contains: normalizedQuery, mode: "insensitive" } },
+          ],
+        },
+      },
+    },
+    select: {
+      batchId: true,
+      studentId: true,
+      batch: { select: { id: true, name: true } },
+      student: {
+        select: {
+          user: {
+            select: {
+              name: true,
+              universityIdNumber: true,
+            },
+          },
+        },
+      },
+    },
+    orderBy: [
+      { student: { user: { name: "asc" } } },
+      { batch: { name: "asc" } },
+    ],
+  }).then((enrollments) =>
+    enrollments.map(({ batchId, studentId, batch, student }) => ({
       id: studentId,
+      batchId,
+      batchName: batch.name,
       name: student.user.name,
       universityIdNumber: student.user.universityIdNumber,
-    })),
-  };
+    }))
+  );
 }
 
 export async function createCoordinationSupportNote(

@@ -21,5 +21,9 @@ export const updateCoordinationSupportStatusSchema = z.object({
   status: z.enum(["OPEN", "RESOLVED"]),
 });
 
+export const searchCoordinationStudentsQuerySchema = z.object({
+  q: z.string().trim().max(100).default(""),
+});
+
 export type CreateCoordinationNoticeInput = z.infer<typeof createCoordinationNoticeSchema>;
 export type CreateCoordinationSupportNoteInput = z.infer<typeof createCoordinationSupportNoteSchema>;
