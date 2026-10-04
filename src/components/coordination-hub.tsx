@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, ChevronDown, ChevronUp, MessageSquare, Send, Trash2 } from "lucide-react";
+import { pusherClient } from "@/lib/pusher-client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -46,6 +47,29 @@ type Comment = {
 };
 type Tab = "announcements" | "support";
 
+function isComment(value: unknown): value is Comment {
+  if (typeof value !== "object" || value === null || !("id" in value) ||
+      !("content" in value) || !("createdAt" in value) || !("author" in value)) {
+    return false;
+  }
+  const author = value.author;
+  return typeof value.id === "string" &&
+    typeof value.content === "string" &&
+    typeof value.createdAt === "string" &&
+    typeof author === "object" && author !== null &&
+    "name" in author && (typeof author.name === "string" || author.name === null) &&
+    "role" in author && (author.role === "MENTOR" || author.role === "MODERATOR");
+}
+
+function isNoteUpdate(
+  value: unknown
+): value is { id: string; status: SupportNote["status"]; updatedAt: string } {
+  return typeof value === "object" && value !== null &&
+    "id" in value && typeof value.id === "string" &&
+    "status" in value && (value.status === "OPEN" || value.status === "RESOLVED") &&
+    "updatedAt" in value && typeof value.updatedAt === "string";
+}
+
 async function readResponse<T>(response: Response, fallback: string): Promise<T> {
   const payload: unknown = await response.json();
   if (!response.ok) {
@@ -89,11 +113,28 @@ export function CoordinationHub({ role }: { role: HubRole }) {
   const [submittingNote, setSubmittingNote] = useState(false);
   const [expandedNoteId, setExpandedNoteId] = useState<string | null>(null);
   const [commentsByNote, setCommentsByNote] = useState<Record<string, Comment[]>>({});
+  const seenCommentIds = useRef(new Set<string>());
   const [commentErrors, setCommentErrors] = useState<Record<string, string>>({});
   const [commentDraft, setCommentDraft] = useState("");
   const [sendingComment, setSendingComment] = useState(false);
   const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
   const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null);
+
+  const appendComment = useCallback((noteId: string, comment: Comment) => {
+    if (seenCommentIds.current.has(comment.id)) return;
+    seenCommentIds.current.add(comment.id);
+    setCommentsByNote((current) => ({
+      ...current,
+      [noteId]: [...(current[noteId] ?? []), comment],
+    }));
+    setSupportNotes((items) =>
+      items.map((note) =>
+        note.id === noteId
+          ? { ...note, _count: { comments: note._count.comments + 1 } }
+          : note
+      )
+    );
+  }, []);
 
   const loadHub = useCallback(async () => {
     setLoading(true);
@@ -125,6 +166,36 @@ export function CoordinationHub({ role }: { role: HubRole }) {
   useEffect(() => {
     void loadHub();
   }, [loadHub]);
+
+  useEffect(() => {
+    if (!expandedNoteId) return;
+    const channelName = `private-note-${expandedNoteId}`;
+    const channel = pusherClient.subscribe(channelName);
+    const handleComment = (payload: unknown) => {
+      if (isComment(payload)) appendComment(expandedNoteId, payload);
+    };
+    const handleNoteUpdate = (payload: unknown) => {
+      if (!isNoteUpdate(payload)) return;
+      setSupportNotes((items) =>
+        items.map((note) =>
+          note.id === payload.id
+            ? { ...note, status: payload.status, updatedAt: payload.updatedAt }
+            : note
+        )
+      );
+    };
+    channel.bind("comment:new", handleComment);
+    channel.bind("note:updated", handleNoteUpdate);
+    channel.bind("pusher:subscription_error", () => {
+      setError("Unable to subscribe to real-time support note updates.");
+    });
+    return () => {
+      channel.unbind("comment:new", handleComment);
+      channel.unbind("note:updated", handleNoteUpdate);
+      channel.unbind("pusher:subscription_error");
+      pusherClient.unsubscribe(channelName);
+    };
+  }, [appendComment, expandedNoteId]);
 
   useEffect(() => {
     if (!noteBatchId) {
@@ -270,7 +341,18 @@ export function CoordinationHub({ role }: { role: HubRole }) {
     try {
       const response = await fetch(`/api/coordination/support-notes/${noteId}/comments`);
       const payload = await readResponse<{ comments: Comment[] }>(response, "Unable to load discussion.");
-      setCommentsByNote((current) => ({ ...current, [noteId]: payload.comments }));
+      payload.comments.forEach(({ id }) => seenCommentIds.current.add(id));
+      setCommentsByNote((current) => {
+        const commentsById = new Map(
+          [...payload.comments, ...(current[noteId] ?? [])].map((comment) => [comment.id, comment])
+        );
+        return {
+          ...current,
+          [noteId]: Array.from(commentsById.values()).sort(
+            (left, right) => left.createdAt.localeCompare(right.createdAt)
+          ),
+        };
+      });
     } catch (cause) {
       setCommentErrors((current) => ({
         ...current,
@@ -301,17 +383,7 @@ export function CoordinationHub({ role }: { role: HubRole }) {
         body: JSON.stringify({ content: commentDraft }),
       });
       const payload = await readResponse<{ comment: Comment }>(response, "Unable to post comment.");
-      setCommentsByNote((current) => ({
-        ...current,
-        [noteId]: [...(current[noteId] ?? []), payload.comment],
-      }));
-      setSupportNotes((items) =>
-        items.map((note) =>
-          note.id === noteId
-            ? { ...note, _count: { comments: note._count.comments + 1 } }
-            : note
-        )
-      );
+      appendComment(noteId, payload.comment);
       setCommentDraft("");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to post comment.");

@@ -8,6 +8,7 @@ import type {
   CreateCoordinationSupportNoteInput,
 } from "@/lib/validation/coordination";
 import { createUserNotifications } from "@/lib/services/notification";
+import { pusherServer } from "@/lib/pusher-server";
 
 async function getCoordinationScope(actor: AccessTokenPayload) {
   if (actor.role !== "MENTOR" && actor.role !== "MODERATOR") {
@@ -427,6 +428,11 @@ export async function createCoordinationSupportNote(
       sourceKey: `coordination-note:${supportNote.id}:created`,
     }
   );
+  try {
+    await pusherServer.trigger(`private-note-${supportNote.id}`, "note:updated", supportNote);
+  } catch (error) {
+    console.error(`[coordination-pusher] Failed to publish support note ${supportNote.id}.`, error);
+  }
   return { ...supportNote, canDelete: true };
 }
 
@@ -439,6 +445,13 @@ export async function listCoordinationComments(actor: AccessTokenPayload, noteId
   });
 }
 
+export async function authorizeCoordinationNoteChannel(
+  actor: AccessTokenPayload,
+  noteId: string
+) {
+  await requireScopedSupportNote(actor, noteId);
+}
+
 export async function createCoordinationComment(
   actor: AccessTokenPayload,
   noteId: string,
@@ -449,6 +462,11 @@ export async function createCoordinationComment(
     data: { supportNoteId: note.id, authorId: actor.sub, content },
     include: { author: { select: { name: true, role: true } } },
   });
+  try {
+    await pusherServer.trigger(`private-note-${note.id}`, "comment:new", comment);
+  } catch (error) {
+    console.error(`[coordination-pusher] Failed to publish comment ${comment.id}.`, error);
+  }
   await notifyCoordinationUsers(
     getThreadParticipantIds(note, actor.sub),
     note,
@@ -475,6 +493,11 @@ export async function updateCoordinationSupportStatus(
     data: { status },
     select: { id: true, status: true, updatedAt: true },
   });
+  try {
+    await pusherServer.trigger(`private-note-${note.id}`, "note:updated", updated);
+  } catch (error) {
+    console.error(`[coordination-pusher] Failed to publish support note ${note.id}.`, error);
+  }
   await notifyCoordinationUsers(
     getThreadParticipantIds(note, actor.sub),
     note,

@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { pusherClient } from "@/lib/pusher-client";
 
 type NotificationItem = {
   id: string;
@@ -42,6 +43,61 @@ export function NotificationCenter() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savingPreference, setSavingPreference] = useState<keyof Preferences | null>(null);
+  const seenNotificationIds = useRef(new Set<string>());
+  const receivedNotifications = useRef(new Map<string, NotificationItem>());
+
+  useEffect(() => {
+    let active = true;
+    let channelName: string | null = null;
+    let notificationChannel: ReturnType<typeof pusherClient.subscribe> | null = null;
+    const connect = async () => {
+      const response = await fetch("/api/me");
+      const payload: unknown = await response.json();
+      if (!response.ok) {
+        const message =
+          typeof payload === "object" && payload !== null && "error" in payload &&
+          typeof payload.error === "string"
+            ? payload.error
+            : "Unable to connect to notifications.";
+        throw new Error(message);
+      }
+      if (
+        typeof payload !== "object" || payload === null || !("user" in payload) ||
+        typeof payload.user !== "object" || payload.user === null ||
+        !("id" in payload.user) || typeof payload.user.id !== "string"
+      ) {
+        throw new Error("Unable to identify the current user for notifications.");
+      }
+      if (!active) return;
+
+      channelName = `private-user-${payload.user.id}`;
+      notificationChannel = pusherClient.subscribe(channelName);
+      notificationChannel.bind("notification:new", (notification: NotificationItem) => {
+        if (!notification?.id || seenNotificationIds.current.has(notification.id)) return;
+        seenNotificationIds.current.add(notification.id);
+        receivedNotifications.current.set(notification.id, notification);
+        setNotifications((items) => [notification, ...items].slice(0, 100));
+        setUnreadCount((count) => count + 1);
+      });
+      notificationChannel.bind("pusher:subscription_error", () => {
+        if (active) setError("Unable to subscribe to real-time notifications.");
+      });
+    };
+
+    void connect().catch((cause: unknown) => {
+      if (active) {
+        setError(cause instanceof Error ? cause.message : "Unable to connect to notifications.");
+      }
+    });
+    return () => {
+      active = false;
+      if (notificationChannel && channelName) {
+        notificationChannel.unbind("notification:new");
+        notificationChannel.unbind("pusher:subscription_error");
+        pusherClient.unsubscribe(channelName);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -60,8 +116,15 @@ export function NotificationCenter() {
       }),
     ]).then(([inbox, loadedPreferences]) => {
       if (!active) return;
-      setNotifications(inbox.notifications);
-      setUnreadCount(inbox.unreadCount);
+      const inboxIds = new Set(inbox.notifications.map(({ id }) => id));
+      inbox.notifications.forEach(({ id }) => seenNotificationIds.current.add(id));
+      const unseenPushedNotifications = Array.from(receivedNotifications.current.values())
+        .filter((notification) => !inboxIds.has(notification.id));
+      setNotifications([...unseenPushedNotifications, ...inbox.notifications].slice(0, 100));
+      setUnreadCount(
+        inbox.unreadCount +
+        unseenPushedNotifications.filter((notification) => !notification.readAt).length
+      );
       setPreferences(loadedPreferences);
     }).catch((cause: unknown) => {
       if (active) setError(cause instanceof Error ? cause.message : "Unable to load notifications.");
@@ -80,7 +143,9 @@ export function NotificationCenter() {
         body: JSON.stringify({ read: true }),
       });
       if (!response.ok) return;
-      setNotifications((items) => items.map((item) => item.id === notification.id ? { ...item, readAt: new Date().toISOString() } : item));
+      const readAt = new Date().toISOString();
+      receivedNotifications.current.set(notification.id, { ...notification, readAt });
+      setNotifications((items) => items.map((item) => item.id === notification.id ? { ...item, readAt } : item));
       setUnreadCount((count) => Math.max(0, count - 1));
     } catch {
       setError("Unable to update notification state.");

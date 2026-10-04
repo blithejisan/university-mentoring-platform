@@ -4,6 +4,7 @@ import { renderEmailTemplate, type EmailTemplateKey } from "@/lib/email/template
 import { sendEmail } from "@/lib/email/sender";
 import { AuthError, requireApprovedMentor, requireModeratorOwnsDepartment } from "@/lib/auth/guards";
 import type { AccessTokenPayload } from "@/lib/auth/jwt";
+import { pusherServer } from "@/lib/pusher-server";
 
 export const DEFAULT_NOTIFICATION_PREFERENCES = {
   inAppNotices: true,
@@ -212,7 +213,33 @@ export async function createUserNotifications(
       .filter((userId) => !disabled.has(userId))
       .map((userId) => ({ userId, ...input }));
     if (data.length > 0) {
-      await prisma.notification.createMany({ data, skipDuplicates: true });
+      const createdNotifications = await prisma.notification.createManyAndReturn({
+        data,
+        skipDuplicates: true,
+      });
+      await Promise.all(
+        createdNotifications.map(async (notification) => {
+          try {
+            await pusherServer.trigger(
+              `private-user-${notification.userId}`,
+              "notification:new",
+              {
+                id: notification.id,
+                title: notification.title,
+                message: notification.message,
+                href: notification.href,
+                readAt: notification.readAt,
+                createdAt: notification.createdAt,
+              }
+            );
+          } catch (error) {
+            console.error(
+              `[notification-pusher] Failed to publish notification ${notification.id}.`,
+              error
+            );
+          }
+        })
+      );
     }
   } catch (error) {
     console.error("[notification] Failed to persist in-app notifications.", error);
