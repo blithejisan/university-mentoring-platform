@@ -90,6 +90,11 @@ enum RemarkStatus {
   RESOLVED
 }
 
+enum CoordinationSupportStatus {
+  OPEN
+  RESOLVED
+}
+
 enum EmailType {
   EMAIL_VERIFICATION
   PASSWORD_RESET
@@ -200,7 +205,10 @@ model User {
   remarksResolved        Remark[]            @relation("RemarkResolver")
   noticesAuthored        Notice[]            @relation("NoticeAuthor")
   batchNoticesAuthored   BatchNotice[]       @relation("BatchNoticeAuthor")
-  schedulesAuthored      Schedule[]          @relation("ScheduleMentor")
+  coordinationNoticesAuthored CoordinationNotice[] @relation("CoordinationNoticeAuthor")
+  coordinationSupportNotes   CoordinationSupportNote[] @relation("CoordinationSupportNoteAuthor")
+  coordinationComments       CoordinationComment[] @relation("CoordinationCommentAuthor")
+  schedulesAuthored      Schedule[]           @relation("ScheduleMentor")
   notifications          Notification[]
   notificationPreference NotificationPreference?
 
@@ -226,6 +234,7 @@ model StudentProfile {
   remarks            Remark[]
   noticesTargeted    Notice[]
   mentorEvaluations  MentorEvaluation[]
+  coordinationSupportNotes CoordinationSupportNote[]
 
   @@index([departmentId])
   @@map("student_profiles")
@@ -291,6 +300,8 @@ model Batch {
   noticesTargeted     Notice[]
   crUsers             User[]                 @relation("BatchCRs")
   batchNotices        BatchNotice[]
+  coordinationNotices CoordinationNotice[]
+  coordinationSupportNotes CoordinationSupportNote[]
   remarks             Remark[]
 
   @@index([departmentId])
@@ -491,6 +502,60 @@ model BatchNotice {
   @@index([batchId, createdAt])
   @@index([batchId, isPinned])
   @@map("batch_notices")
+}
+
+model CoordinationNotice {
+  id            String   @id @default(cuid())
+  title         String
+  content       String   @db.Text
+  targetBatchId String?  @map("target_batch_id")
+  createdById   String   @map("created_by_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  targetBatch Batch? @relation(fields: [targetBatchId], references: [id], onDelete: Cascade)
+  createdBy   User   @relation("CoordinationNoticeAuthor", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([targetBatchId, createdAt])
+  @@index([createdById, createdAt])
+  @@map("coordination_notices")
+}
+
+model CoordinationSupportNote {
+  id          String                    @id @default(cuid())
+  batchId     String                    @map("batch_id")
+  studentId   String?                   @map("student_id")
+  title       String
+  message     String                    @db.Text
+  status      CoordinationSupportStatus @default(OPEN)
+  createdById String                    @map("created_by_id")
+  createdAt   DateTime                  @default(now()) @map("created_at")
+  updatedAt   DateTime                  @updatedAt @map("updated_at")
+
+  batch     Batch                @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  student   StudentProfile?      @relation(fields: [studentId], references: [userId], onDelete: SetNull)
+  createdBy User                 @relation("CoordinationSupportNoteAuthor", fields: [createdById], references: [id], onDelete: Cascade)
+  comments  CoordinationComment[]
+
+  @@index([batchId, status, createdAt])
+  @@index([studentId])
+  @@index([createdById])
+  @@map("coordination_support_notes")
+}
+
+model CoordinationComment {
+  id            String   @id @default(cuid())
+  supportNoteId String   @map("support_note_id")
+  authorId      String   @map("author_id")
+  content       String   @db.Text
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  supportNote CoordinationSupportNote @relation(fields: [supportNoteId], references: [id], onDelete: Cascade)
+  author      User                    @relation("CoordinationCommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([supportNoteId, createdAt])
+  @@index([authorId])
+  @@map("coordination_comments")
 }
 
 // ── Routine / scheduling ─────────────────────────────────────────────────

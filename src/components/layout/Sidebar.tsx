@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import {
   CalendarDays,
   BarChart3,
+  Award,
   BellRing,
   ExternalLink,
   FileText,
@@ -13,6 +14,7 @@ import {
   Layers3,
   MessageSquareText,
   Megaphone,
+  MessageSquare,
   Star,
   UserCheck,
   UserRound,
@@ -54,6 +56,7 @@ const roleItems: Record<string, SidebarItem[]> = {
     { label: "Sessions", href: "/moderator/dashboard#sessions", icon: CalendarDays, group: "Management" },
     { label: "Mentors", href: "/moderator/mentors", icon: UsersRound, group: "Management" },
     { label: "Mentor Applications", href: "/moderator/mentors/pending", icon: UserCheck, group: "Quick access" },
+    { label: "Coordination Hub", href: "/moderator/coordination", icon: MessageSquare, group: "Quick access" },
     { label: "Batch Performance", href: "/moderator/dashboard#batch-performance", icon: BarChart3, group: "Quick access" },
     { label: "Notice Management", href: "/moderator/dashboard#notices", icon: BellRing, group: "Quick access" },
   ],
@@ -63,7 +66,9 @@ const roleItems: Record<string, SidebarItem[]> = {
     { label: "Sessions", href: "/mentor/sessions", icon: CalendarDays, group: "Workspace" },
     { label: "Mentors", href: "/mentor/mentors", icon: UsersRound, group: "Workspace" },
     { label: "Session Notices", href: "/mentor/dashboard#notices", icon: BellRing, group: "Quick access" },
+    { label: "Coordination Hub", href: "/mentor/coordination", icon: MessageSquare, group: "Quick access" },
     { label: "Session Remarks", href: "/mentor/dashboard#remarks", icon: MessageSquareText, group: "Quick access" },
+    { label: "My Evaluation", href: "/mentor/dashboard#my-evaluation", icon: Award, group: "Quick access" },
     studentPortalItem,
   ],
   student: [

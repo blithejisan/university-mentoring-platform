@@ -71,7 +71,7 @@ export default async function MentorDashboardPage() {
         <BatchPerformanceReport role="MENTOR" />
       </section>
 
-      <div className="border-t border-slate-200 pt-6">
+      <div id="my-evaluation" className="scroll-mt-4 border-t border-slate-200 pt-6">
         <MentorEvaluationsDashboard />
       </div>
     </div>
