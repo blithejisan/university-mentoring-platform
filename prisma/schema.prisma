@@ -110,6 +110,7 @@ enum NotificationType {
   NOTICE
   SESSION
   REMARK
+  COORDINATION
 }
 
 enum EmailStatus {
@@ -536,6 +537,7 @@ model CoordinationSupportNote {
   student   StudentProfile?      @relation(fields: [studentId], references: [userId], onDelete: SetNull)
   createdBy User                 @relation("CoordinationSupportNoteAuthor", fields: [createdById], references: [id], onDelete: Cascade)
   comments  CoordinationComment[]
+  notifications Notification[]
 
   @@index([batchId, status, createdAt])
   @@index([studentId])
@@ -614,6 +616,7 @@ model Notification {
   userId    String           @map("user_id")
   noticeId  String?          @map("notice_id")
   sessionId String?          @map("session_id")
+  supportNoteId String?      @map("support_note_id")
   type      NotificationType
   title     String
   message   String
@@ -625,11 +628,13 @@ model Notification {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   notice Notice? @relation(fields: [noticeId], references: [id], onDelete: Cascade)
   session AttendanceSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  supportNote CoordinationSupportNote? @relation(fields: [supportNoteId], references: [id], onDelete: Cascade)
 
   @@unique([userId, sourceKey])
   @@index([userId, readAt, createdAt])
   @@index([noticeId])
   @@index([sessionId])
+  @@index([supportNoteId])
   @@map("notifications")
 }
 
@@ -641,6 +646,7 @@ model NotificationPreference {
   emailSessionReminders Boolean  @default(true) @map("email_session_reminders")
   inAppRemarks          Boolean  @default(true) @map("in_app_remarks")
   emailRemarks          Boolean  @default(true) @map("email_remarks")
+  inAppCoordination     Boolean  @default(true) @map("in_app_coordination")
   updatedAt             DateTime @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

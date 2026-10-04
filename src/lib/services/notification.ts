@@ -12,6 +12,7 @@ export const DEFAULT_NOTIFICATION_PREFERENCES = {
   emailSessionReminders: true,
   inAppRemarks: true,
   emailRemarks: true,
+  inAppCoordination: true,
 };
 
 export type NotificationPreferenceKey = keyof typeof DEFAULT_NOTIFICATION_PREFERENCES;
@@ -71,6 +72,11 @@ export async function listNotifications(actor: AccessTokenPayload) {
         },
       },
       session: { include: { batch: { include: { department: true } } } },
+      supportNote: {
+        include: {
+          batch: { include: { department: true } },
+        },
+      },
     },
     orderBy: { createdAt: "desc" },
     take: 100,
@@ -126,6 +132,24 @@ export async function listNotifications(actor: AccessTokenPayload) {
       if (actor.role === "MODERATOR") return !!moderator && session.batch.departmentId === moderator.departmentId && session.batch.department.universityId === actorUser.universityId;
       return session.batch.department.universityId === actorUser.universityId;
     }
+    if (notification.supportNote) {
+      const supportNote = notification.supportNote;
+      if (actor.role === "MENTOR") {
+        return mentor?.approvalStatus === "APPROVED"
+          && batchIds.has(supportNote.batchId)
+          && supportNote.batch.departmentId === mentor.departmentId
+          && supportNote.batch.department.universityId === actorUser.universityId;
+      }
+      if (actor.role === "MODERATOR") {
+        return !!moderator
+          && supportNote.batch.departmentId === moderator.departmentId
+          && supportNote.batch.department.universityId === actorUser.universityId;
+      }
+      if (actor.role === "ADMIN") {
+        return supportNote.batch.department.universityId === actorUser.universityId;
+      }
+      return false;
+    }
     return true;
   });
 
@@ -161,6 +185,7 @@ export async function createUserNotifications(
     sourceKey: string;
     noticeId?: string;
     sessionId?: string;
+    supportNoteId?: string;
   },
   preference: NotificationPreferenceKey
 ) {
@@ -177,6 +202,7 @@ export async function createUserNotifications(
         emailSessionReminders: true,
         inAppRemarks: true,
         emailRemarks: true,
+        inAppCoordination: true,
       },
     });
     const disabled = new Set(
@@ -188,8 +214,8 @@ export async function createUserNotifications(
     if (data.length > 0) {
       await prisma.notification.createMany({ data, skipDuplicates: true });
     }
-  } catch {
-    // Inbox persistence must not fail the operation that produced the event.
+  } catch (error) {
+    console.error("[notification] Failed to persist in-app notifications.", error);
   }
 }
 
@@ -219,6 +245,7 @@ export async function sendTemplatedEmailToUsers(
         emailSessionReminders: true,
         inAppRemarks: true,
         emailRemarks: true,
+        inAppCoordination: true,
       },
     });
   } catch {

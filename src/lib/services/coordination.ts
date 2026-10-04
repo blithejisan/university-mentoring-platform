@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { CoordinationSupportStatus } from "@prisma/client";
 import { AuthError, requireApprovedMentor, requireModeratorOwnsDepartment } from "@/lib/auth/guards";
 import type { AccessTokenPayload } from "@/lib/auth/jwt";
@@ -6,6 +7,7 @@ import type {
   CreateCoordinationNoticeInput,
   CreateCoordinationSupportNoteInput,
 } from "@/lib/validation/coordination";
+import { createUserNotifications } from "@/lib/services/notification";
 
 async function getCoordinationScope(actor: AccessTokenPayload) {
   if (actor.role !== "MENTOR" && actor.role !== "MODERATOR") {
@@ -85,10 +87,116 @@ async function requireScopedSupportNote(actor: AccessTokenPayload, id: string) {
   const scope = await getCoordinationScope(actor);
   const note = await prisma.coordinationSupportNote.findFirst({
     where: { id, batchId: { in: scope.batchIds } },
-    select: { id: true, batchId: true },
+    include: {
+      batch: {
+        select: {
+          id: true,
+          name: true,
+          departmentId: true,
+          department: { select: { universityId: true } },
+        },
+      },
+      createdBy: { select: { id: true, name: true } },
+      comments: { select: { authorId: true } },
+    },
   });
   if (!note) throw new AuthError("Support note not found.", 404);
   return note;
+}
+
+async function notifyCoordinationUsers(
+  userIds: string[],
+  note: { id: string; batchId: string },
+  event: { title: string; message: string; sourceKey: string }
+) {
+  if (userIds.length === 0) return;
+  try {
+    const users = await prisma.user.findMany({
+      where: {
+        id: { in: Array.from(new Set(userIds)) },
+        role: { in: ["MENTOR", "MODERATOR"] },
+        status: "ACTIVE",
+      },
+      select: { id: true, role: true },
+    });
+    await Promise.all(
+      (["MENTOR", "MODERATOR"] as const).map((role) =>
+        createUserNotifications(
+          users.filter((user) => user.role === role).map(({ id }) => id),
+          {
+            type: "COORDINATION",
+            title: event.title,
+            message: event.message,
+            href: `/${role.toLowerCase()}/coordination?noteId=${encodeURIComponent(note.id)}`,
+            sourceKey: event.sourceKey,
+            supportNoteId: note.id,
+          },
+          "inAppCoordination"
+        )
+      )
+    );
+  } catch (error) {
+    console.error(`[coordination-notification] Failed to notify support note ${note.id}.`, error);
+  }
+}
+
+async function getBatchCoordinationParticipants(batchId: string) {
+  const batch = await prisma.batch.findUnique({
+    where: { id: batchId },
+    select: {
+      departmentId: true,
+      department: { select: { universityId: true } },
+    },
+  });
+  if (!batch) throw new AuthError("Batch not found.", 404);
+  const [mentors, moderators] = await Promise.all([
+    prisma.mentorBatch.findMany({
+      where: {
+        batchId,
+        mentor: {
+          departmentId: batch.departmentId,
+          approvalStatus: "APPROVED",
+          user: { is: { status: "ACTIVE", universityId: batch.department.universityId } },
+        },
+      },
+      select: { mentorId: true },
+    }),
+    prisma.moderatorProfile.findMany({
+      where: {
+        departmentId: batch.departmentId,
+        user: { is: { status: "ACTIVE", universityId: batch.department.universityId } },
+      },
+      select: { userId: true },
+    }),
+  ]);
+  return [...mentors.map(({ mentorId }) => mentorId), ...moderators.map(({ userId }) => userId)];
+}
+
+async function notifyBatchCoordinationParticipants(
+  batchId: string,
+  actorId: string,
+  note: { id: string; batchId: string },
+  event: { title: string; message: string; sourceKey: string }
+) {
+  try {
+    const participants = await getBatchCoordinationParticipants(batchId);
+    await notifyCoordinationUsers(
+      participants.filter((userId) => userId !== actorId),
+      note,
+      event
+    );
+  } catch (error) {
+    console.error(`[coordination-notification] Failed to find recipients for batch ${batchId}.`, error);
+  }
+}
+
+function getThreadParticipantIds(
+  note: { createdById: string; comments: Array<{ authorId: string }> },
+  excludeUserId: string
+) {
+  return Array.from(
+    new Set([note.createdById, ...note.comments.map(({ authorId }) => authorId)])
+  ).filter((userId) => userId !== excludeUserId);
 }
 
 export async function listCoordinationAnnouncements(actor: AccessTokenPayload) {
@@ -165,6 +273,10 @@ export async function listCoordinationSupportNotes(actor: AccessTokenPayload) {
   return {
     supportNotes: supportNotes.map((note) => ({
       ...note,
+      canDelete:
+        actor.role === "MODERATOR" ||
+        actor.role === "ADMIN" ||
+        note.createdById === actor.sub,
       student:
         note.student?.departmentId === scope.departmentId &&
         note.student.user.universityId === scope.universityId
@@ -290,7 +402,7 @@ export async function createCoordinationSupportNote(
     if (!enrollment) throw new AuthError("Student is not currently enrolled in this batch.", 400);
   }
 
-  return prisma.coordinationSupportNote.create({
+  const supportNote = await prisma.coordinationSupportNote.create({
     data: {
       batchId: input.batchId,
       studentId: input.studentId ?? null,
@@ -301,10 +413,21 @@ export async function createCoordinationSupportNote(
     include: {
       batch: { select: { id: true, name: true } },
       student: { select: { user: { select: { name: true } } } },
-      createdBy: { select: { name: true, role: true } },
+      createdBy: { select: { id: true, name: true, role: true } },
       _count: { select: { comments: true } },
     },
   });
+  await notifyBatchCoordinationParticipants(
+    input.batchId,
+    actor.sub,
+    { id: supportNote.id, batchId: supportNote.batchId },
+    {
+      title: `New support note in ${supportNote.batch.name}`,
+      message: `${supportNote.createdBy.name || "A colleague"} posted: ${supportNote.title}`,
+      sourceKey: `coordination-note:${supportNote.id}:created`,
+    }
+  );
+  return { ...supportNote, canDelete: true };
 }
 
 export async function listCoordinationComments(actor: AccessTokenPayload, noteId: string) {
@@ -322,10 +445,20 @@ export async function createCoordinationComment(
   content: string
 ) {
   const note = await requireScopedSupportNote(actor, noteId);
-  return prisma.coordinationComment.create({
+  const comment = await prisma.coordinationComment.create({
     data: { supportNoteId: note.id, authorId: actor.sub, content },
     include: { author: { select: { name: true, role: true } } },
   });
+  await notifyCoordinationUsers(
+    getThreadParticipantIds(note, actor.sub),
+    note,
+    {
+      title: "New reply in support thread",
+      message: `${comment.author.name || "A colleague"} replied to: ${note.title}`,
+      sourceKey: `coordination-comment:${comment.id}`,
+    }
+  );
+  return comment;
 }
 
 export async function updateCoordinationSupportStatus(
@@ -334,9 +467,68 @@ export async function updateCoordinationSupportStatus(
   status: CoordinationSupportStatus
 ) {
   const note = await requireScopedSupportNote(actor, noteId);
-  return prisma.coordinationSupportNote.update({
+  if (note.status === status) {
+    return { id: note.id, status: note.status, updatedAt: note.updatedAt };
+  }
+  const updated = await prisma.coordinationSupportNote.update({
     where: { id: note.id },
     data: { status },
     select: { id: true, status: true, updatedAt: true },
   });
+  await notifyCoordinationUsers(
+    getThreadParticipantIds(note, actor.sub),
+    note,
+    {
+      title: `Support note ${status === "RESOLVED" ? "resolved" : "reopened"}`,
+      message: `${actor.role === "MENTOR" ? "A mentor" : "A moderator"} updated: ${note.title}`,
+      sourceKey: `coordination-status:${note.id}:${randomUUID()}`,
+    }
+  );
+  return updated;
+}
+
+export async function deleteCoordinationSupportNote(
+  actor: AccessTokenPayload,
+  noteId: string
+) {
+  if (actor.role !== "ADMIN" && actor.role !== "MENTOR" && actor.role !== "MODERATOR") {
+    throw new AuthError("Not authorized to delete support notes.", 403);
+  }
+
+  const note = await prisma.coordinationSupportNote.findUnique({
+    where: { id: noteId },
+    select: {
+      id: true,
+      createdById: true,
+      batchId: true,
+      batch: { select: { department: { select: { universityId: true } } } },
+    },
+  });
+  if (!note) throw new AuthError("Support note not found.", 404);
+
+  if (actor.role === "MENTOR") {
+    const scope = await getCoordinationScope(actor);
+    if (!scope.batchIds.includes(note.batchId)) {
+      throw new AuthError("Not authorized to delete support notes outside your batches.", 403);
+    }
+    if (note.createdById !== actor.sub) {
+      throw new AuthError("Only the note creator can delete this support note.", 403);
+    }
+  } else if (actor.role === "MODERATOR") {
+    const scope = await getCoordinationScope(actor);
+    if (!scope.batchIds.includes(note.batchId)) {
+      throw new AuthError("Not authorized to delete support notes outside your department.", 403);
+    }
+  } else {
+    const admin = await prisma.user.findUnique({
+      where: { id: actor.sub },
+      select: { universityId: true },
+    });
+    if (!admin || admin.universityId !== note.batch.department.universityId) {
+      throw new AuthError("Not authorized to delete support notes outside your university.", 403);
+    }
+  }
+
+  await prisma.coordinationSupportNote.delete({ where: { id: note.id } });
+  return { id: note.id };
 }

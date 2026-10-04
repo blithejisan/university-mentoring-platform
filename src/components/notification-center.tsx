@@ -21,6 +21,7 @@ type Preferences = {
   emailSessionReminders: boolean;
   inAppRemarks: boolean;
   emailRemarks: boolean;
+  inAppCoordination: boolean;
 };
 
 const PREFERENCE_LABELS: Array<{ key: keyof Preferences; label: string }> = [
@@ -30,6 +31,7 @@ const PREFERENCE_LABELS: Array<{ key: keyof Preferences; label: string }> = [
   { key: "emailSessionReminders", label: "Session reminder emails" },
   { key: "inAppRemarks", label: "In-app remarks" },
   { key: "emailRemarks", label: "Remark emails" },
+  { key: "inAppCoordination", label: "In-app coordination" },
 ];
 
 export function NotificationCenter() {

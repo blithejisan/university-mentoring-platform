@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Check, ChevronDown, ChevronUp, MessageSquare, Send } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, MessageSquare, Send, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -36,6 +36,7 @@ type SupportNote = {
   student: { user: { name: string | null } } | null;
   createdBy: { name: string | null; role: HubRole };
   _count: { comments: number };
+  canDelete: boolean;
 };
 type Comment = {
   id: string;
@@ -92,6 +93,7 @@ export function CoordinationHub({ role }: { role: HubRole }) {
   const [commentDraft, setCommentDraft] = useState("");
   const [sendingComment, setSendingComment] = useState(false);
   const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
+  const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null);
 
   const loadHub = useCallback(async () => {
     setLoading(true);
@@ -343,6 +345,31 @@ export function CoordinationHub({ role }: { role: HubRole }) {
       setError(cause instanceof Error ? cause.message : "Unable to update note status.");
     } finally {
       setUpdatingStatusId(null);
+    }
+  }
+
+  async function deleteSupportNote(note: SupportNote) {
+    if (!window.confirm(`Delete "${note.title}" and its discussion? This cannot be undone.`)) return;
+    const previousNotes = supportNotes;
+    setDeletingNoteId(note.id);
+    setError(null);
+    setSupportNotes((items) => items.filter((item) => item.id !== note.id));
+    try {
+      const response = await fetch(`/api/coordination/support-notes/${note.id}`, {
+        method: "DELETE",
+      });
+      await readResponse<{ id: string }>(response, "Unable to delete support note.");
+      setCommentsByNote((current) => {
+        const next = { ...current };
+        delete next[note.id];
+        return next;
+      });
+      if (expandedNoteId === note.id) setExpandedNoteId(null);
+    } catch (cause) {
+      setSupportNotes(previousNotes);
+      setError(cause instanceof Error ? cause.message : "Unable to delete support note.");
+    } finally {
+      setDeletingNoteId(null);
     }
   }
 
@@ -626,6 +653,18 @@ export function CoordinationHub({ role }: { role: HubRole }) {
                       <Button type="button" variant="outline" size="sm" onClick={() => void updateStatus(note)} disabled={updatingStatusId === note.id}>
                         <Check />{updatingStatusId === note.id ? "Updating..." : note.status === "OPEN" ? "Mark resolved" : "Reopen"}
                       </Button>
+                      {note.canDelete && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => void deleteSupportNote(note)}
+                          disabled={deletingNoteId === note.id}
+                          aria-label={`Delete support note: ${note.title}`}
+                        >
+                          <Trash2 />{deletingNoteId === note.id ? "Deleting..." : "Delete"}
+                        </Button>
+                      )}
                     </div>
                     {expanded && (
                       <div className="space-y-4 rounded-lg bg-slate-50 p-4">

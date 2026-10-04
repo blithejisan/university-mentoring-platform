@@ -68,12 +68,22 @@ function stubScope(role: "MENTOR" | "MODERATOR") {
   );
   stubModel("department", "findUnique", async () => ({ universityId: "university-1" }));
   stubModel("user", "findUnique", async () => ({ universityId: "university-1" }));
-  stubModel("user", "findMany", async () => [{ id: "moderator-1" }]);
+  stubModel("user", "findMany", async () => [
+    { id: "moderator-1", role: "MODERATOR", status: "ACTIVE" },
+  ]);
   stubModel("batch", "findMany", async () => [
     { id: "batch-1", name: "Batch One" },
     { id: "batch-2", name: "Batch Two" },
   ]);
-  stubModel("batch", "findUnique", async () => ({ id: "batch-1" }));
+  stubModel("batch", "findUnique", async () => ({
+    id: "batch-1",
+    departmentId: "department-1",
+    department: { universityId: "university-1" },
+  }));
+  stubModel("mentorBatch", "findMany", async () => [{ mentorId: "mentor-2" }]);
+  stubModel("moderatorProfile", "findMany", async () => [{ userId: "moderator-2" }]);
+  stubModel("notificationPreference", "findMany", async () => []);
+  stubModel("notification", "createMany", async () => ({ count: 1 }));
 }
 
 test("batch roster returns every current enrollment without account status filters or caps", async () => {
@@ -150,7 +160,13 @@ test("mentor and moderator can complete announcement, support thread, and status
     title: "Student needs support",
     message: "Please follow up this week.",
     status: "OPEN" as const,
+    createdById: "mentor-1",
+    batch: { id: "batch-1", name: "Batch One" },
+    createdBy: { id: "mentor-1", name: "Mentor One", role: "MENTOR" },
+    comments: [],
+    updatedAt: new Date("2026-10-04T11:00:00.000Z"),
   };
+  const notificationWrites: unknown[] = [];
 
   stubScope("MODERATOR");
   stubModel("coordinationNotice", "create", async () => announcement);
@@ -168,6 +184,10 @@ test("mentor and moderator can complete announcement, support thread, and status
   stubScope("MENTOR");
   stubModel("studentBatch", "findFirst", async () => ({ studentId: "student-1" }));
   stubModel("coordinationSupportNote", "create", async () => supportNote);
+  stubModel("notification", "createMany", async (args) => {
+    notificationWrites.push(args);
+    return { count: 1 };
+  });
   const createdNote = await coordination.createCoordinationSupportNote(
     { sub: "mentor-1", role: "MENTOR", status: "ACTIVE" },
     {
@@ -178,6 +198,7 @@ test("mentor and moderator can complete announcement, support thread, and status
     }
   );
   assert.equal(createdNote.studentId, "student-1");
+  assert.equal(notificationWrites.length, 1);
 
   stubScope("MODERATOR");
   stubModel("coordinationSupportNote", "findFirst", async () => ({
@@ -185,52 +206,138 @@ test("mentor and moderator can complete announcement, support thread, and status
     batchId: supportNote.batchId,
   }));
   stubModel("coordinationComment", "findMany", async () => comments);
+  stubModel("coordinationSupportNote", "findFirst", async () => ({
+    ...supportNote,
+    batch: {
+      id: "batch-1",
+      name: "Batch One",
+      departmentId: "department-1",
+      department: { universityId: "university-1" },
+    },
+    createdBy: { id: supportNote.createdById, name: "Mentor One" },
+    comments: [],
+  }));
   const visibleComments = await coordination.listCoordinationComments(
     { sub: "moderator-1", role: "MODERATOR", status: "ACTIVE" },
     supportNote.id
   );
   assert.deepEqual(visibleComments, []);
 
-  stubScope("MENTOR");
+  stubScope("MODERATOR");
   stubModel("coordinationComment", "create", async (args) => {
     const data = (args as { data: { content: string; authorId: string } }).data;
     const comment = { id: "comment-1", ...data };
     comments.push(comment);
-    return comment;
+    return { ...comment, author: { name: "Moderator One" } };
+  });
+  stubModel("coordinationSupportNote", "findFirst", async () => ({
+    ...supportNote,
+    batch: {
+      id: "batch-1",
+      name: "Batch One",
+      departmentId: "department-1",
+      department: { universityId: "university-1" },
+    },
+    createdBy: { id: supportNote.createdById, name: "Mentor One" },
+    comments: [],
+  }));
+  stubModel("notification", "createMany", async (args) => {
+    notificationWrites.push(args);
+    return { count: 1 };
   });
   const reply = await coordination.createCoordinationComment(
-    { sub: "mentor-1", role: "MENTOR", status: "ACTIVE" },
+    { sub: "moderator-1", role: "MODERATOR", status: "ACTIVE" },
     supportNote.id,
     "I will follow up with the student."
   );
   assert.equal(reply.content, comments[0].content);
+  assert.equal(notificationWrites.length, 2);
 
   stubScope("MODERATOR");
   stubModel("coordinationComment", "findMany", async () => comments);
+  stubModel("coordinationSupportNote", "findFirst", async () => ({
+    ...supportNote,
+    batch: {
+      id: "batch-1",
+      name: "Batch One",
+      departmentId: "department-1",
+      department: { universityId: "university-1" },
+    },
+    createdBy: { id: supportNote.createdById, name: "Mentor One" },
+    comments,
+  }));
   const replies = await coordination.listCoordinationComments(
     { sub: "moderator-1", role: "MODERATOR", status: "ACTIVE" },
     supportNote.id
   );
   assert.equal(replies.length, 1);
 
-  stubScope("MENTOR");
+  stubScope("MODERATOR");
   stubModel("coordinationSupportNote", "update", async (args) => ({
     id: supportNote.id,
     status: (args as { data: { status: "OPEN" | "RESOLVED" } }).data.status,
     updatedAt: new Date("2026-10-04T12:00:00.000Z"),
   }));
+  stubModel("coordinationSupportNote", "findFirst", async () => ({
+    ...supportNote,
+    batch: {
+      id: "batch-1",
+      name: "Batch One",
+      departmentId: "department-1",
+      department: { universityId: "university-1" },
+    },
+    createdBy: { id: supportNote.createdById, name: "Mentor One" },
+    comments,
+  }));
+  stubModel("notification", "createMany", async (args) => {
+    notificationWrites.push(args);
+    return { count: 1 };
+  });
   const updated = await coordination.updateCoordinationSupportStatus(
-    { sub: "mentor-1", role: "MENTOR", status: "ACTIVE" },
+    { sub: "moderator-1", role: "MODERATOR", status: "ACTIVE" },
     supportNote.id,
     "RESOLVED"
   );
   assert.equal(updated.status, "RESOLVED");
+  assert.equal(notificationWrites.length, 3);
 
   await assert.rejects(
     () => coordination.createCoordinationAnnouncement(
       { sub: "mentor-1", role: "MENTOR", status: "ACTIVE" },
       { title: "Not allowed", content: "Mentors cannot publish guidelines.", targetBatchId: null }
     ),
+    (error: unknown) => error instanceof guards.AuthError && error.status === 403
+  );
+});
+
+test("support note deletion is scoped to the note creator or moderator department", async () => {
+  stubScope("MODERATOR");
+  stubModel("coordinationSupportNote", "findUnique", async () => ({
+    id: "note-1",
+    batchId: "batch-1",
+    createdById: "mentor-1",
+    batch: { department: { universityId: "university-1" } },
+  }));
+  let deletedId: string | undefined;
+  stubModel("coordinationSupportNote", "delete", async (args) => {
+    deletedId = (args as { where: { id: string } }).where.id;
+    return { id: deletedId };
+  });
+
+  const deleted = await coordination.deleteCoordinationSupportNote(
+    { sub: "moderator-1", role: "MODERATOR", status: "ACTIVE" },
+    "note-1"
+  );
+  assert.equal(deleted.id, "note-1");
+  assert.equal(deletedId, "note-1");
+
+  stubScope("MENTOR");
+  await assert.rejects(
+    () =>
+      coordination.deleteCoordinationSupportNote(
+        { sub: "mentor-2", role: "MENTOR", status: "ACTIVE" },
+        "note-1"
+      ),
     (error: unknown) => error instanceof guards.AuthError && error.status === 403
   );
 });

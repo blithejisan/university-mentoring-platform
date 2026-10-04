@@ -10,6 +10,7 @@ const preferencesSchema = z.object({
   emailSessionReminders: z.boolean().optional(),
   inAppRemarks: z.boolean().optional(),
   emailRemarks: z.boolean().optional(),
+  inAppCoordination: z.boolean().optional(),
 }).strict();
 
 export async function GET() {
