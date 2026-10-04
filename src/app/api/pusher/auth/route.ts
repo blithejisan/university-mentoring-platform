@@ -31,6 +31,9 @@ export async function POST(request: NextRequest) {
     if (!socketId || !channelName) {
       return NextResponse.json({ error: "A socket ID and channel name are required." }, { status: 400 });
     }
+    if (!pusherServer) {
+      return NextResponse.json({ error: "Real-time channel authorization is not configured." }, { status: 503 });
+    }
 
     if (channelName.startsWith("private-user-")) {
       if (channelName.slice("private-user-".length) !== actor.sub) {

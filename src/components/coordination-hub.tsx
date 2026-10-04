@@ -168,9 +168,10 @@ export function CoordinationHub({ role }: { role: HubRole }) {
   }, [loadHub]);
 
   useEffect(() => {
-    if (!expandedNoteId) return;
+    const client = pusherClient;
+    if (!expandedNoteId || !client) return;
     const channelName = `private-note-${expandedNoteId}`;
-    const channel = pusherClient.subscribe(channelName);
+    const channel = client.subscribe(channelName);
     const handleComment = (payload: unknown) => {
       if (isComment(payload)) appendComment(expandedNoteId, payload);
     };
@@ -193,7 +194,7 @@ export function CoordinationHub({ role }: { role: HubRole }) {
       channel.unbind("comment:new", handleComment);
       channel.unbind("note:updated", handleNoteUpdate);
       channel.unbind("pusher:subscription_error");
-      pusherClient.unsubscribe(channelName);
+      client.unsubscribe(channelName);
     };
   }, [appendComment, expandedNoteId]);
 

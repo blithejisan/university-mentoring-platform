@@ -429,7 +429,9 @@ export async function createCoordinationSupportNote(
     }
   );
   try {
-    await pusherServer.trigger(`private-note-${supportNote.id}`, "note:updated", supportNote);
+    if (pusherServer) {
+      await pusherServer.trigger(`private-note-${supportNote.id}`, "note:updated", supportNote);
+    }
   } catch (error) {
     console.error(`[coordination-pusher] Failed to publish support note ${supportNote.id}.`, error);
   }
@@ -463,7 +465,9 @@ export async function createCoordinationComment(
     include: { author: { select: { name: true, role: true } } },
   });
   try {
-    await pusherServer.trigger(`private-note-${note.id}`, "comment:new", comment);
+    if (pusherServer) {
+      await pusherServer.trigger(`private-note-${note.id}`, "comment:new", comment);
+    }
   } catch (error) {
     console.error(`[coordination-pusher] Failed to publish comment ${comment.id}.`, error);
   }
@@ -494,7 +498,9 @@ export async function updateCoordinationSupportStatus(
     select: { id: true, status: true, updatedAt: true },
   });
   try {
-    await pusherServer.trigger(`private-note-${note.id}`, "note:updated", updated);
+    if (pusherServer) {
+      await pusherServer.trigger(`private-note-${note.id}`, "note:updated", updated);
+    }
   } catch (error) {
     console.error(`[coordination-pusher] Failed to publish support note ${note.id}.`, error);
   }

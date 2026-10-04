@@ -2,16 +2,18 @@
 
 import PusherClient from "pusher-js";
 
-function requiredEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) throw new Error(`Missing required environment variable: ${name}`);
-  return value;
+const key = process.env.NEXT_PUBLIC_PUSHER_KEY;
+const cluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER;
+
+if (!key || !cluster) {
+  console.error(
+    "[pusher] Real-time client updates are disabled. Configure NEXT_PUBLIC_PUSHER_KEY and NEXT_PUBLIC_PUSHER_CLUSTER."
+  );
 }
 
-export const pusherClient = new PusherClient(
-  requiredEnv("NEXT_PUBLIC_PUSHER_KEY"),
-  {
-    cluster: requiredEnv("NEXT_PUBLIC_PUSHER_CLUSTER"),
-    channelAuthorization: { endpoint: "/api/pusher/auth", transport: "ajax" },
-  }
-);
+export const pusherClient = key && cluster
+  ? new PusherClient(key, {
+      cluster,
+      channelAuthorization: { endpoint: "/api/pusher/auth", transport: "ajax" },
+    })
+  : null;

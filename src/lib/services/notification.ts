@@ -220,6 +220,7 @@ export async function createUserNotifications(
       await Promise.all(
         createdNotifications.map(async (notification) => {
           try {
+            if (!pusherServer) return;
             await pusherServer.trigger(
               `private-user-${notification.userId}`,
               "notification:new",

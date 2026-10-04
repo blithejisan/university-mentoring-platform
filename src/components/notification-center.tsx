@@ -47,9 +47,11 @@ export function NotificationCenter() {
   const receivedNotifications = useRef(new Map<string, NotificationItem>());
 
   useEffect(() => {
+    const client = pusherClient;
+    if (!client) return;
     let active = true;
     let channelName: string | null = null;
-    let notificationChannel: ReturnType<typeof pusherClient.subscribe> | null = null;
+    let notificationChannel: ReturnType<NonNullable<typeof pusherClient>["subscribe"]> | null = null;
     const connect = async () => {
       const response = await fetch("/api/me");
       const payload: unknown = await response.json();
@@ -71,7 +73,7 @@ export function NotificationCenter() {
       if (!active) return;
 
       channelName = `private-user-${payload.user.id}`;
-      notificationChannel = pusherClient.subscribe(channelName);
+      notificationChannel = client.subscribe(channelName);
       notificationChannel.bind("notification:new", (notification: NotificationItem) => {
         if (!notification?.id || seenNotificationIds.current.has(notification.id)) return;
         seenNotificationIds.current.add(notification.id);
@@ -94,7 +96,7 @@ export function NotificationCenter() {
       if (notificationChannel && channelName) {
         notificationChannel.unbind("notification:new");
         notificationChannel.unbind("pusher:subscription_error");
-        pusherClient.unsubscribe(channelName);
+        client.unsubscribe(channelName);
       }
     };
   }, []);
