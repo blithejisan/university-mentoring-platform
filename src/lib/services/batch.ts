@@ -451,9 +451,27 @@ export async function removeStudentFromBatch(actor: AccessTokenPayload, batchId:
 
   await requireBatchManager(actor, batchId, batch.departmentId);
 
-  const updated = await prisma.studentBatch.update({
-    where: { studentId_batchId: { studentId: studentUserId, batchId } },
-    data: { leftAt: new Date() },
+  const updated = await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw<Array<{ id: string }>>`SELECT "id" FROM "batches" WHERE "id" = ${batchId} FOR UPDATE`;
+    const membership = await tx.studentBatch.update({
+      where: { studentId_batchId: { studentId: studentUserId, batchId } },
+      data: { leftAt: new Date() },
+    });
+    await tx.user.updateMany({
+      where: {
+        id: studentUserId,
+        crBatchId: batchId,
+        isCR: true,
+        crStatus: "APPROVED",
+      },
+      data: {
+        isCR: false,
+        crStatus: "NONE",
+        crApprovedAt: null,
+        crBatchId: null,
+      },
+    });
+    return membership;
   });
 
   await writeAuditLog({

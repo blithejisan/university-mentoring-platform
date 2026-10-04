@@ -22,7 +22,6 @@ ADD CONSTRAINT "session_mentors_mentor_id_fkey"
 FOREIGN KEY ("mentor_id") REFERENCES "mentor_profiles"("user_id")
 ON DELETE CASCADE ON UPDATE CASCADE;
 
-ALTER TABLE "mentor_evaluations"
 DROP INDEX "mentor_evaluations_student_id_session_id_key";
 
 CREATE UNIQUE INDEX "mentor_evaluations_student_id_session_id_mentor_id_key"

@@ -1,0 +1,195 @@
+"use client";
+
+import { useEffect, useState, type FormEvent } from "react";
+
+type BatchChoice = { id: string; name: string };
+type CRStudent = {
+  id: string;
+  name: string | null;
+  email: string;
+  universityIdNumber: string;
+  status: string;
+  crStatus: string;
+  isCR?: boolean;
+  crBatch?: BatchChoice | null;
+  batches: BatchChoice[];
+};
+
+export function AdminCRManagement() {
+  const [pending, setPending] = useState<CRStudent[]>([]);
+  const [results, setResults] = useState<CRStudent[]>([]);
+  const [query, setQuery] = useState("");
+  const [selectedBatch, setSelectedBatch] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+
+  async function load(search = "") {
+    setLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams();
+      if (search.trim()) params.set("q", search.trim());
+      const response = await fetch(`/api/admin/cr?${params.toString()}`);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Could not load CR management.");
+      setPending(data.pendingRequests ?? []);
+      setResults(data.searchResults ?? []);
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "Could not load CR management.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void load();
+  }, []);
+
+  async function search(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await load(query);
+  }
+
+  async function update(student: CRStudent, action: "APPROVE" | "REJECT") {
+    const batchId = selectedBatch[student.id] ?? student.batches[0]?.id;
+    if (action === "APPROVE" && !batchId) {
+      setError("Assign this student to a batch before approving them as a CR.");
+      return;
+    }
+
+    setBusyId(student.id);
+    setError(null);
+    setMessage(null);
+    try {
+      const response = await fetch("/api/admin/cr", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action,
+          userId: student.id,
+          ...(action === "APPROVE" ? { batchId } : {}),
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "CR status could not be updated.");
+      setMessage(
+        action === "APPROVE"
+          ? `${student.name ?? student.universityIdNumber} is now an approved CR.`
+          : `${student.name ?? student.universityIdNumber}'s CR request was rejected.`
+      );
+      await load(query);
+    } catch (updateError) {
+      setError(updateError instanceof Error ? updateError.message : "CR status could not be updated.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  function batchSelector(student: CRStudent) {
+    return (
+      <select
+        aria-label={`CR batch for ${student.name ?? student.universityIdNumber}`}
+        value={selectedBatch[student.id] ?? student.batches[0]?.id ?? ""}
+        onChange={(event) =>
+          setSelectedBatch((current) => ({ ...current, [student.id]: event.target.value }))
+        }
+        disabled={!student.batches.length}
+        className="h-10 min-w-40 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 disabled:opacity-50"
+      >
+        <option value="" disabled>
+          No active batch
+        </option>
+        {student.batches.map((batch) => (
+          <option key={batch.id} value={batch.id}>
+            {batch.name}
+          </option>
+        ))}
+      </select>
+    );
+  }
+
+  function studentCard(student: CRStudent, isPending: boolean) {
+    const alreadyApproved = student.crStatus === "APPROVED" && student.isCR;
+    return (
+      <article key={student.id} className="flex flex-col gap-4 rounded-lg border border-slate-200 p-4 md:flex-row md:items-center md:justify-between">
+        <div className="min-w-0">
+          <h3 className="font-semibold text-slate-900">{student.name ?? "Unnamed student"}</h3>
+          <p className="text-sm text-slate-600">{student.universityIdNumber} · {student.email}</p>
+          <p className="mt-1 text-xs text-slate-500">
+            Account: {student.status.replaceAll("_", " ").toLowerCase()} · CR status: {student.crStatus.toLowerCase()}
+            {alreadyApproved && student.crBatch ? ` · ${student.crBatch.name}` : ""}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {batchSelector(student)}
+          {!alreadyApproved && (
+            <button
+              type="button"
+              onClick={() => void update(student, "APPROVE")}
+              disabled={busyId === student.id || student.status === "REJECTED" || student.status === "SUSPENDED" || !student.batches.length}
+              className="min-h-10 rounded-md bg-emerald-700 px-4 text-sm font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {busyId === student.id ? "Saving…" : "Approve as CR"}
+            </button>
+          )}
+          {isPending && (
+            <button
+              type="button"
+              onClick={() => void update(student, "REJECT")}
+              disabled={busyId === student.id}
+              className="min-h-10 rounded-md border border-rose-300 px-4 text-sm font-semibold text-rose-800 hover:bg-rose-50 disabled:opacity-50"
+            >
+              Reject
+            </button>
+          )}
+        </div>
+      </article>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      {error && <p role="alert" className="rounded-md bg-rose-50 px-4 py-3 text-sm text-rose-800">{error}</p>}
+      {message && <p role="status" className="rounded-md bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{message}</p>}
+
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-900">Pending CR applications</h2>
+          <p className="text-sm text-slate-600">Approve a student account in one of their current batches, or reject the request.</p>
+        </div>
+        {loading ? (
+          <p className="text-sm text-slate-500">Loading applications…</p>
+        ) : pending.length ? (
+          <div className="space-y-3">{pending.map((student) => studentCard(student, true))}</div>
+        ) : (
+          <p className="rounded-md bg-slate-50 px-4 py-3 text-sm text-slate-600">There are no pending CR applications.</p>
+        )}
+      </section>
+
+      <section className="space-y-3 border-t border-slate-200 pt-6">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-900">Find an existing student</h2>
+          <p className="text-sm text-slate-600">Search by student ID or email to approve a previously imported student without re-registration.</p>
+        </div>
+        <form onSubmit={search} className="flex flex-col gap-2 sm:flex-row">
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Student ID or email"
+            aria-label="Search students by ID or email"
+            className="h-10 min-w-0 flex-1 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900"
+          />
+          <button type="submit" disabled={loading} className="min-h-10 rounded-md bg-slate-800 px-4 text-sm font-semibold text-white disabled:opacity-50">
+            Search
+          </button>
+        </form>
+        {results.length > 0 && <div className="space-y-3">{results.map((student) => studentCard(student, false))}</div>}
+        {!loading && query && results.length === 0 && (
+          <p className="text-sm text-slate-500">No matching student accounts found.</p>
+        )}
+      </section>
+    </div>
+  );
+}

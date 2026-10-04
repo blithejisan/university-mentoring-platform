@@ -19,6 +19,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [universityEmail, setUniversityEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [applyAsCR, setApplyAsCR] = useState(false);
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -44,6 +45,7 @@ export default function RegisterPage() {
       email,
       universityEmail: universityEmail || undefined,
       ...(role === "STUDENT" ? { phone: phone || undefined } : {}),
+      ...(role === "STUDENT" ? { applyAsCR } : {}),
       password,
       departmentId,
     };
@@ -174,6 +176,20 @@ export default function RegisterPage() {
                 <Label htmlFor="phone">Phone (optional)</Label>
                 <Input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
               </div>
+              <label className="flex items-start gap-3 rounded-md border border-border bg-muted/40 p-3 text-sm">
+                <input
+                  type="checkbox"
+                  checked={applyAsCR}
+                  onChange={(e) => setApplyAsCR(e.target.checked)}
+                  className="mt-0.5 size-4 accent-primary"
+                />
+                <span>
+                  <span className="font-medium text-foreground">Apply as Batch CR</span>
+                  <span className="mt-1 block text-xs text-muted-foreground">
+                    An administrator will review your request after your account is active and assigned to a batch.
+                  </span>
+                </span>
+              </label>
             </>
           )}
 

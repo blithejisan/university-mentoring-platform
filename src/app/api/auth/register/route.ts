@@ -91,6 +91,12 @@ export async function POST(request: NextRequest) {
             passwordHash,
             status: "PENDING_VERIFICATION",
             emailVerifiedAt: null,
+            crStatus:
+              input.role === "STUDENT" &&
+              input.applyAsCR &&
+              existing.crStatus !== "APPROVED"
+                ? "PENDING"
+                : undefined,
           },
         });
       }
@@ -108,6 +114,7 @@ export async function POST(request: NextRequest) {
           // verifying their email (handled in the verify-email route).
           // Students go straight to ACTIVE once verified.
           status: "PENDING_VERIFICATION",
+          crStatus: input.role === "STUDENT" && input.applyAsCR ? "PENDING" : "NONE",
         },
       });
 

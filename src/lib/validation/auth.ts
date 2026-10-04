@@ -24,6 +24,7 @@ export const studentRegisterSchema = z.object({
   password,
   departmentId: z.string().min(1, "Select a department."),
   phone: z.string().optional(),
+  applyAsCR: z.boolean().optional().default(false),
 });
 
 export const mentorRegisterSchema = z.object({

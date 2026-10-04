@@ -9,7 +9,9 @@ import {
   FileText,
   LayoutDashboard,
   Layers3,
+  Megaphone,
   Star,
+  UserCheck,
   UserRound,
   UsersRound,
 } from "lucide-react";
@@ -35,6 +37,8 @@ const roleItems: Record<string, SidebarItem[]> = {
     { label: "Batches", href: "/admin/batches", icon: Layers3 },
     { label: "Sessions", href: "/admin/dashboard#sessions", icon: CalendarDays },
     { label: "Mentors", href: "/admin/mentors", icon: UsersRound },
+    { label: "CR Management", href: "/admin/cr-management", icon: UserCheck },
+    { label: "My Batch", href: "/admin/my-batch", icon: Megaphone },
   ],
   moderator: [
     { label: "Dashboard", href: "/moderator/dashboard", icon: LayoutDashboard },
@@ -55,6 +59,7 @@ const roleItems: Record<string, SidebarItem[]> = {
     { label: "Sessions", href: "/student/dashboard#sessions", icon: CalendarDays },
     { label: "Lab Report Generator", href: "/student/lab-report-generator", icon: FileText },
     { label: "Mentor Evaluation", href: "/student/evaluations", icon: Star },
+    { label: "My Batch", href: "/student/my-batch", icon: Megaphone },
     studentPortalItem,
   ],
 };

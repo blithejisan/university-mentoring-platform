@@ -5,6 +5,7 @@
 
 export interface SendEmailInput {
   to: string;
+  from?: string;
   subject: string;
   html: string;
   text?: string;
@@ -36,7 +37,7 @@ async function sendWithResend(input: SendEmailInput): Promise<EmailSendResult> {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from,
+      from: input.from ?? from,
       to: input.to,
       subject: input.subject,
       html: input.html,
@@ -76,7 +77,7 @@ async function sendWithSmtp(input: SendEmailInput): Promise<EmailSendResult> {
 
   try {
     const result = await transport.sendMail({
-      from,
+      from: input.from ?? from,
       to: input.to,
       subject: input.subject,
       html: input.html,

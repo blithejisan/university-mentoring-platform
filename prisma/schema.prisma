@@ -25,6 +25,13 @@ enum Role {
   STUDENT
 }
 
+enum CRStatus {
+  NONE
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 // Account lifecycle status. Students go straight to ACTIVE after email
 // verification. Mentors pass through the approval sub-flow below.
 enum AccountStatus {
@@ -163,11 +170,16 @@ model User {
   passwordHash       String        @map("password_hash")
   tokenVersion       Int           @default(0) @map("token_version")
   status             AccountStatus @default(PENDING_VERIFICATION)
+  isCR               Boolean       @default(false) @map("is_cr")
+  crStatus           CRStatus      @default(NONE) @map("cr_status")
+  crApprovedAt       DateTime?     @map("cr_approved_at")
+  crBatchId          String?       @map("cr_batch_id")
   emailVerifiedAt    DateTime?     @map("email_verified_at")
   createdAt          DateTime      @default(now()) @map("created_at")
   updatedAt          DateTime      @updatedAt @map("updated_at")
 
   university University @relation(fields: [universityId], references: [id])
+  crBatch    Batch?     @relation("BatchCRs", fields: [crBatchId], references: [id], onDelete: SetNull)
 
   studentProfile   StudentProfile?
   mentorProfile    MentorProfile?
@@ -187,10 +199,12 @@ model User {
   remarksAuthored        Remark[]            @relation("RemarkMentor")
   remarksResolved        Remark[]            @relation("RemarkResolver")
   noticesAuthored        Notice[]            @relation("NoticeAuthor")
+  batchNoticesAuthored   BatchNotice[]       @relation("BatchNoticeAuthor")
   schedulesAuthored      Schedule[]          @relation("ScheduleMentor")
   notifications          Notification[]
   notificationPreference NotificationPreference?
 
+  @@index([crBatchId])
   @@map("users")
 }
 
@@ -275,6 +289,8 @@ model Batch {
   schedules           Schedule[]
   mentorEvaluations   MentorEvaluation[]
   noticesTargeted     Notice[]
+  crUsers             User[]                 @relation("BatchCRs")
+  batchNotices        BatchNotice[]
   remarks             Remark[]
 
   @@index([departmentId])
@@ -455,6 +471,26 @@ model Notice {
   @@index([targetDepartmentId])
   @@index([targetBatchId])
   @@map("notices")
+}
+
+model BatchNotice {
+  id                    String   @id @default(cuid())
+  title                 String
+  content               String   @db.Text
+  batchId               String   @map("batch_id")
+  authorId              String   @map("author_id")
+  isPinned              Boolean  @default(false) @map("is_pinned")
+  attachments           Json?
+  sendEmailNotification Boolean  @default(false) @map("send_email_notification")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  batch  Batch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  author User  @relation("BatchNoticeAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([batchId, createdAt])
+  @@index([batchId, isPinned])
+  @@map("batch_notices")
 }
 
 // ── Routine / scheduling ─────────────────────────────────────────────────

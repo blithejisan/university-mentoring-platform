@@ -35,10 +35,10 @@ The table groups the capabilities represented in the current codebase into nine 
 |---|---|---|
 | **1 — Foundation and identity** | Student and mentor registration, email verification, login/logout, access-token refresh, password recovery, role-aware routing, and pending-approval state for mentors. | Implemented |
 | **2 — Academic organization** | University and department records, department-scoped batches, batch lifecycle/status, and student/mentor batch assignments. | Schema and management APIs/pages |
-| **3 — Mentor administration** | Admin and moderator review of mentor applications, approval/rejection with a reason, approval status, and audit history. | Implemented; authorization is scoped by role and organization |
+| **3 — Mentor and CR administration** | Admin and moderator review of mentor applications; admin approval/rejection of student CR requests and direct appointment of existing students, with a three-CR batch cap. | Implemented; mentor authorization is organization-scoped and CR approvals are batch-scoped |
 | **4 — Sessions and attendance** | Schedule mentoring sessions, record attendance, finalize records, and retain a reasoned edit history for corrections. | Schema, APIs, and session pages |
 | **5 — Performance and feedback** | Record student performance in simple or category mode; capture student evaluations of mentoring sessions and mentors. | Schema and APIs/reports |
-| **6 — Notices and communication** | Target notices to users, departments, batches, or all users; notification preferences; email templates; queued delivery logs and scheduled reminders. | Implemented, with external scheduler configuration required for scheduled dispatch |
+| **6 — Notices and communication** | Target notices to users, departments, batches, or all users; batch noticeboards; CR-authored announcements; notification preferences; email templates; queued delivery logs and scheduled reminders. | Implemented, with external scheduler configuration required for scheduled dispatch |
 | **7 — Reporting and discovery** | Attendance and performance reports, mentor and student lookup, and role-specific dashboards. | Reporting/search APIs and role pages |
 | **8 — Application experience** | Responsive Next.js interface, Tailwind styling, reusable UI primitives, and dashboard/session/batch workflows. | Implemented in the current application |
 | **9 — Security hardening** | University/department authorization boundaries, safe same-origin redirects, HTTP-only token cookies, refresh-token version revocation, shared PostgreSQL rate limiting, Zod request validation, and generic error responses on the communication scheduler. | Implemented controls with automated regression tests; see [Security and compliance](#security-and-compliance) |
@@ -47,10 +47,12 @@ The table groups the capabilities represented in the current codebase into nine 
 
 | Role | Typical responsibilities |
 |---|---|
-| **Admin** | Manage academic resources and mentors within their university; review mentor applications across that university. |
+| **Admin** | Manage academic resources and mentors within their university; review mentor and batch CR applications; inspect and moderate batch notices. |
 | **Moderator** | Manage and review work within the moderator's assigned department. |
 | **Mentor** | Work with assigned batches, manage mentoring sessions and attendance, and record student progress. |
-| **Student** | View their own mentoring/batch information and sessions, and provide session feedback where available. |
+| **Student** | View their own mentoring/batch information and sessions, provide session feedback, and read batch notices; approved CRs can publish notices for their assigned batch. |
+
+Students can optionally apply as a batch CR during registration. Admins can also appoint an existing student by ID or email. Each batch is limited to three approved CRs. CRs can post pinned Markdown notices and links/attachments; optional email announcements are sent to active students assigned to that batch.
 
 The server is authoritative for role and scope checks. Public registration accepts student or mentor roles; privileged admin and moderator accounts are provisioned intentionally rather than self-assigned by a client.
 
@@ -94,13 +96,13 @@ The Prisma schema is the source of truth for the relational model. Important ent
 | Model | Purpose |
 |---|---|
 | `University`, `Department` | Organization hierarchy; departments belong to a university and carry department-level configuration such as the low-attendance threshold. |
-| `User` | Shared identity, login identifier, role, account status, password hash, and token version. |
+| `User` | Shared identity, login identifier, role, account status, password hash, token version, and CR application/approval fields with a designated CR batch. |
 | `StudentProfile`, `MentorProfile`, `ModeratorProfile` | Role-specific profile data, department membership, moderator scope, and mentor approval state. |
 | `Batch`, `StudentBatch`, `MentorBatch` | Academic cohorts and many-to-many student/mentor assignments. |
 | `AttendanceSession`, `AttendanceRecord`, `AttendanceEditLog` | Scheduled sessions, per-student attendance, and an auditable correction trail. |
 | `PerformanceRecord`, `MentorEvaluation` | Student performance entries and student feedback about mentoring sessions. |
 | `Schedule` | Batch-level mentoring schedule entries. |
-| `Notice`, `Notification`, `NotificationPreference` | Targeted notices, user notifications, read state, and per-channel preferences. |
+| `Notice`, `BatchNotice`, `Notification`, `NotificationPreference` | Targeted notices, batch-specific CR announcements and attachments, user notifications, read state, and per-channel preferences. |
 | `EmailTemplate`, `EmailLog` | Editable message templates and delivery/deduplication history. |
 | `EmailVerificationToken`, `PasswordResetToken` | Hashed, expiring, single-use account-verification and password-reset tokens. |
 | `AuditLog`, `SecurityRateLimit` | Recorded administrative changes and database-backed rate limiting. |
