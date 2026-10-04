@@ -22,8 +22,12 @@ export const updateCoordinationSupportStatusSchema = z.object({
 });
 
 export const searchCoordinationStudentsQuerySchema = z.object({
-  q: z.string().trim().max(100).default(""),
-});
+  q: z.string().trim().min(2).max(100).optional(),
+  batchId: z.string().trim().min(1).max(100).optional(),
+}).refine(
+  (query) => Boolean(query.batchId) !== Boolean(query.q),
+  { message: "Provide either a batch ID or a student ID search query." }
+);
 
 export type CreateCoordinationNoticeInput = z.infer<typeof createCoordinationNoticeSchema>;
 export type CreateCoordinationSupportNoteInput = z.infer<typeof createCoordinationSupportNoteSchema>;

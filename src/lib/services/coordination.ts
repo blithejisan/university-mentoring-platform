@@ -183,20 +183,13 @@ export async function searchCoordinationStudents(
   const normalizedQuery = query.trim();
   if (normalizedQuery.length < 2 || scope.batchIds.length === 0) return [];
 
-  return prisma.studentBatch.findMany({
+  const enrollments = await prisma.studentBatch.findMany({
     where: {
       batchId: { in: scope.batchIds },
       leftAt: null,
       student: {
-        departmentId: scope.departmentId,
         user: {
-          status: "ACTIVE",
-          universityId: scope.universityId,
-          role: "STUDENT",
-          OR: [
-            { universityIdNumber: { contains: normalizedQuery, mode: "insensitive" } },
-            { name: { contains: normalizedQuery, mode: "insensitive" } },
-          ],
+          universityIdNumber: { contains: normalizedQuery, mode: "insensitive" },
         },
       },
     },
@@ -219,15 +212,57 @@ export async function searchCoordinationStudents(
       { student: { user: { name: "asc" } } },
       { batch: { name: "asc" } },
     ],
-  }).then((enrollments) =>
-    enrollments.map(({ batchId, studentId, batch, student }) => ({
-      id: studentId,
-      batchId,
-      batchName: batch.name,
-      name: student.user.name,
-      universityIdNumber: student.user.universityIdNumber,
-    }))
-  );
+  });
+  return enrollments.map(({ batchId, studentId, batch, student }) => ({
+    id: studentId,
+    batchId,
+    batchName: batch.name,
+    name: student.user.name,
+    universityIdNumber: student.user.universityIdNumber,
+  }));
+}
+
+export async function listCoordinationBatchStudents(
+  actor: AccessTokenPayload,
+  batchId: string
+) {
+  const scope = await getCoordinationScope(actor);
+  const batch = await prisma.batch.findUnique({
+    where: { id: batchId },
+    select: { id: true },
+  });
+  if (!batch) throw new AuthError("Batch not found.", 404);
+  if (!scope.batchIds.includes(batchId)) {
+    throw new AuthError("You are not authorized to access this batch.", 403);
+  }
+
+  const enrollments = await prisma.studentBatch.findMany({
+    where: { batchId, leftAt: null },
+    select: {
+      batchId: true,
+      studentId: true,
+      batch: { select: { name: true } },
+      student: {
+        select: {
+          user: {
+            select: {
+              name: true,
+              universityIdNumber: true,
+            },
+          },
+        },
+      },
+    },
+    orderBy: { student: { user: { name: "asc" } } },
+  });
+
+  return enrollments.map(({ batchId: enrolledBatchId, studentId, batch: enrolledBatch, student }) => ({
+    id: studentId,
+    batchId: enrolledBatchId,
+    batchName: enrolledBatch.name,
+    name: student.user.name,
+    universityIdNumber: student.user.universityIdNumber,
+  }));
 }
 
 export async function createCoordinationSupportNote(
@@ -249,10 +284,6 @@ export async function createCoordinationSupportNote(
         studentId: input.studentId,
         batchId: input.batchId,
         leftAt: null,
-        student: {
-          departmentId: scope.departmentId,
-          user: { status: "ACTIVE", universityId: scope.universityId },
-        },
       },
       select: { studentId: true },
     });
