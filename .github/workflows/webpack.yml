@@ -1,4 +1,4 @@
-name: NodeJS with Webpack
+name: Next.js and Prisma CI
 
 on:
   push:
@@ -9,20 +9,33 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/db
+      DIRECT_URL: postgresql://placeholder:placeholder@localhost:5432/db
+      JWT_ACCESS_SECRET: ci-placeholder-access-secret-at-least-thirty-two-characters
+      JWT_REFRESH_SECRET: ci-placeholder-refresh-secret-at-least-thirty-two-characters
 
     strategy:
       matrix:
-        node-version: [18.x, 20.x, 22.x]
+        node-version: [20.x, 22.x]
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
 
-    - name: Build
-      run: |
-        npm install
-        npx webpack
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Type-check
+        run: npx tsc --noEmit
+
+      - name: Build Next.js application
+        run: npm run build
