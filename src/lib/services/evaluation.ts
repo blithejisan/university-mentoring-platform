@@ -4,6 +4,8 @@ import type { AccessTokenPayload } from "@/lib/auth/jwt";
 import type { SubmitEvaluationInput } from "@/lib/validation/evaluation";
 import { writeAuditLog } from "@/lib/audit";
 
+const MINIMUM_ANONYMOUS_RESPONSES = 3;
+
 /**
  * Submit a student evaluation for a mentor session.
  *
@@ -11,7 +13,7 @@ import { writeAuditLog } from "@/lib/audit";
  *  - Actor must be STUDENT.
  *  - Session must exist and be COMPLETED.
  *  - Student must be an active member of the session's batch.
- *  - Student must not have already evaluated this session.
+ *  - Student must not have already evaluated this mentor for this session.
  */
 export async function submitMentorEvaluation(
   actor: AccessTokenPayload,
@@ -25,11 +27,15 @@ export async function submitMentorEvaluation(
   // Load the session
   const session = await prisma.attendanceSession.findUnique({
     where: { id: sessionId },
-    include: { batch: true },
+    include: { batch: true, sessionMentors: { select: { mentorId: true } } },
   });
   if (!session) throw new AuthError("Session not found.", 404);
   if (session.status !== "COMPLETED") {
     throw new AuthError("You can only evaluate a completed session.", 400);
+  }
+  const mentorId = input.mentorId;
+  if (!session.sessionMentors.some((assignment) => assignment.mentorId === mentorId)) {
+    throw new AuthError("The selected mentor is not assigned to this session.", 400);
   }
 
   // Check student is in the batch
@@ -44,37 +50,59 @@ export async function submitMentorEvaluation(
 
   // Ensure mentor profile exists
   const mentorProfile = await prisma.mentorProfile.findUnique({
-    where: { userId: session.mentorId },
+    where: { userId: mentorId },
   });
   if (!mentorProfile) {
     throw new AuthError("Mentor profile not found.", 404);
   }
 
-  // Duplicate check: one evaluation per student per session
+  // One response is allowed per student, session, and assigned mentor.
   const existing = await prisma.mentorEvaluation.findUnique({
-    where: { studentId_sessionId: { studentId: actor.sub, sessionId } },
+    where: {
+      studentId_sessionId_mentorId: {
+        studentId: actor.sub,
+        sessionId,
+        mentorId,
+      },
+    },
   });
   if (existing) {
     throw new AuthError(
-      "You have already submitted an evaluation for this session.",
+      "You have already evaluated this mentor for this session.",
       409
     );
   }
 
-  const evaluation = await prisma.mentorEvaluation.create({
-    data: {
-      studentId: actor.sub,
-      mentorId: session.mentorId,
-      sessionId,
-      batchId: session.batchId,
-      overallRating: input.overallRating,
-      communicationRating: input.communicationRating ?? null,
-      helpfulnessRating: input.helpfulnessRating ?? null,
-      sessionQualityRating: input.sessionQualityRating ?? null,
-      supportRating: input.supportRating ?? null,
-      comment: input.comment ?? null,
-    },
-  });
+  let evaluation;
+  try {
+    evaluation = await prisma.mentorEvaluation.create({
+      data: {
+        studentId: actor.sub,
+        mentorId,
+        sessionId,
+        batchId: session.batchId,
+        overallRating: input.overallRating,
+        communicationRating: input.communicationRating ?? null,
+        helpfulnessRating: input.helpfulnessRating ?? null,
+        sessionQualityRating: input.sessionQualityRating ?? null,
+        supportRating: input.supportRating ?? null,
+        comment: input.comment ?? null,
+      },
+    });
+  } catch (error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      error.code === "P2002"
+    ) {
+      throw new AuthError(
+        "You have already evaluated this mentor for this session.",
+        409
+      );
+    }
+    throw error;
+  }
 
   await writeAuditLog({
     actorId: actor.sub,
@@ -84,7 +112,7 @@ export async function submitMentorEvaluation(
     targetId: evaluation.id,
     newValue: {
       sessionId,
-      mentorId: session.mentorId,
+      mentorId,
       overallRating: input.overallRating,
     },
   });
@@ -98,7 +126,8 @@ export async function submitMentorEvaluation(
  */
 export async function getEvaluationStatus(
   actor: AccessTokenPayload,
-  sessionId: string
+  sessionId: string,
+  mentorId?: string
 ) {
   if (actor.role !== "STUDENT") {
     throw new AuthError("Only students can check evaluation status.", 403);
@@ -106,7 +135,12 @@ export async function getEvaluationStatus(
 
   const session = await prisma.attendanceSession.findUnique({
     where: { id: sessionId },
-    select: { id: true, status: true, batchId: true, mentorId: true },
+    select: {
+      id: true,
+      status: true,
+      batchId: true,
+      sessionMentors: { select: { mentorId: true } },
+    },
   });
   if (!session) throw new AuthError("Session not found.", 404);
 
@@ -116,24 +150,29 @@ export async function getEvaluationStatus(
     },
   });
 
-  const existing = membership
-    ? await prisma.mentorEvaluation.findUnique({
-        where: {
-          studentId_sessionId: { studentId: actor.sub, sessionId },
-        },
-      })
-    : null;
+  const evaluatedMentorIds = membership
+    ? (
+        await prisma.mentorEvaluation.findMany({
+          where: { studentId: actor.sub, sessionId },
+          select: { mentorId: true },
+        })
+      ).map((evaluation) => evaluation.mentorId)
+    : [];
 
   return {
     sessionStatus: session.status,
     isMember: !!membership,
-    hasEvaluated: !!existing,
-    evaluation: existing,
+    evaluatedMentorIds,
+    hasEvaluated: mentorId
+      ? evaluatedMentorIds.includes(mentorId)
+      : session.sessionMentors.every((assignment) =>
+          evaluatedMentorIds.includes(assignment.mentorId)
+        ),
   };
 }
 
 /**
- * List all evaluations received by the currently-authenticated mentor.
+ * Return only anonymous aggregate ratings and sufficiently grouped comments.
  * Admins and moderators may pass a mentorId query param to view any mentor.
  */
 export async function listEvaluationsForMentor(
@@ -169,61 +208,95 @@ export async function listEvaluationsForMentor(
     throw new AuthError("Not authorized.", 403);
   }
 
-  const evaluations = await prisma.mentorEvaluation.findMany({
+  const sessions = await prisma.attendanceSession.findMany({
     where: {
-      mentorId: targetMentorId,
-      ...(targetScope
-        ? {
-            mentor: {
-              departmentId: targetScope.departmentId,
-              department: { universityId: targetScope.universityId },
-            },
-          }
-        : {}),
-    },
-    orderBy: { createdAt: "desc" },
-    include: {
-      session: {
-        select: {
-          id: true,
-          date: true,
-          topic: true,
-          status: true,
-          batch: { select: { id: true, name: true } },
+      sessionMentors: {
+        some: {
+          mentorId: targetMentorId,
+          ...(targetScope
+            ? {
+                mentor: {
+                  departmentId: targetScope.departmentId,
+                  department: { universityId: targetScope.universityId },
+                },
+              }
+            : {}),
         },
       },
-      student: {
+      status: "COMPLETED",
+    },
+    orderBy: { date: "desc" },
+    select: {
+      id: true,
+      date: true,
+      topic: true,
+      mentorEvaluations: {
+        where: { mentorId: targetMentorId },
         select: {
-          user: { select: { universityIdNumber: true, email: true } },
+          overallRating: true,
+          communicationRating: true,
+          helpfulnessRating: true,
+          sessionQualityRating: true,
+          comment: true,
         },
       },
     },
   });
 
-  // Compute aggregate stats
-  const count = evaluations.length;
-  const avg = (field: (e: (typeof evaluations)[number]) => number | null) => {
-    const vals = evaluations.map(field).filter((v): v is number => v !== null);
-    return vals.length > 0
-      ? Math.round((vals.reduce((a: number, b: number) => a + b, 0) / vals.length) * 10) / 10
-      : null;
-  };
+  return sessions.map((session) => {
+    const evaluations = session.mentorEvaluations;
+    const hasEnoughResponses =
+      evaluations.length >= MINIMUM_ANONYMOUS_RESPONSES;
+    if (!hasEnoughResponses) {
+      return {
+        session: { date: session.date, topic: session.topic },
+        hasEnoughResponses: false,
+        stats: null,
+        feedback: null,
+      };
+    }
 
-  const stats = {
-    totalEvaluations: count,
-    averageOverall: avg((e) => e.overallRating),
-    averageCommunication: avg((e) => e.communicationRating),
-    averageHelpfulness: avg((e) => e.helpfulnessRating),
-    averageSessionQuality: avg((e) => e.sessionQualityRating),
-    averageSupport: avg((e) => e.supportRating),
-  };
+    const avg = (
+      field: (evaluation: (typeof evaluations)[number]) => number | null
+    ) => {
+      const ratings = evaluations
+        .map(field)
+        .filter((rating): rating is number => rating !== null);
+      return ratings.length > 0
+        ? Math.round(
+            (ratings.reduce((total, rating) => total + rating, 0) /
+              ratings.length) *
+              10
+          ) / 10
+        : null;
+    };
+    const comments = evaluations
+      .map((evaluation) => evaluation.comment?.trim())
+      .filter((comment): comment is string => !!comment);
 
-  return { evaluations, stats };
+    return {
+      session: { date: session.date, topic: session.topic },
+      hasEnoughResponses: true,
+      stats: {
+        totalEvaluations: evaluations.length,
+        averageOverall: avg((evaluation) => evaluation.overallRating),
+        averageCommunication: avg(
+          (evaluation) => evaluation.communicationRating
+        ),
+        averageHelpfulness: avg((evaluation) => evaluation.helpfulnessRating),
+        averageSessionQuality: avg(
+          (evaluation) => evaluation.sessionQualityRating
+        ),
+      },
+      feedback:
+        comments.length >= MINIMUM_ANONYMOUS_RESPONSES ? comments : null,
+    };
+  });
 }
 
 /**
- * List all completed sessions for the logged-in student's batches,
- * annotated with whether the student has already submitted an evaluation.
+ * List completed sessions for the logged-in student's batches, with each
+ * assigned mentor annotated by that student's own submission status.
  */
 export async function listStudentSessionsWithEvaluationStatus(
   actor: AccessTokenPayload
@@ -256,19 +329,34 @@ export async function listStudentSessionsWithEvaluationStatus(
       topic: true,
       status: true,
       batch: { select: { id: true, name: true } },
-      mentor: { select: { universityIdNumber: true } },
+      sessionMentors: {
+        select: {
+          mentorId: true,
+          mentor: {
+            select: {
+              user: { select: { universityIdNumber: true } },
+            },
+          },
+        },
+      },
     },
   });
 
-  // Get all evaluations this student has already submitted
+  // Only per-session mentor identifiers are used to mark the student's own submissions.
   const existingEvals = await prisma.mentorEvaluation.findMany({
     where: { studentId: actor.sub },
-    select: { sessionId: true },
+    select: { sessionId: true, mentorId: true },
   });
-  const evaluatedSessionIds = new Set(existingEvals.map((e: { sessionId: string }) => e.sessionId));
+  const evaluatedPairs = new Set(
+    existingEvals.map((evaluation) => `${evaluation.sessionId}:${evaluation.mentorId}`)
+  );
 
-  return sessions.map((s) => ({
-    ...s,
-    hasEvaluated: evaluatedSessionIds.has(s.id),
+  return sessions.map(({ sessionMentors, ...session }) => ({
+    ...session,
+    mentors: sessionMentors.map((assignment) => ({
+      id: assignment.mentorId,
+      universityIdNumber: assignment.mentor.user.universityIdNumber,
+      hasEvaluated: evaluatedPairs.has(`${session.id}:${assignment.mentorId}`),
+    })),
   }));
 }

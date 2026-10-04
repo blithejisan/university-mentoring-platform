@@ -4,7 +4,6 @@ import { prisma } from "@/lib/prisma";
 import { StudentAttendanceView } from "@/components/student-attendance-view";
 import { StudentSessionsOverview } from "@/components/student-sessions-overview";
 import { StudentPerformanceView } from "@/components/student-performance-view";
-import { StudentSessionEvaluations } from "@/components/student-session-evaluations";
 import { StudentNoticesView } from "@/components/student-notices-view";
 import { StudentRemarksView } from "@/components/student-remarks-view";
 import Link from "next/link";
@@ -70,11 +69,6 @@ export default async function StudentDashboardPage() {
       {/* Remarks */}
       <div className="border-t border-slate-200 pt-6">
         <StudentRemarksView />
-      </div>
-
-      {/* Evaluations */}
-      <div className="border-t border-slate-200 pt-6">
-        <StudentSessionEvaluations />
       </div>
     </div>
   );

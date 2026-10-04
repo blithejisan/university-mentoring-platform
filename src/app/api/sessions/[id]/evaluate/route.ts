@@ -9,13 +9,14 @@ import { submitEvaluationSchema } from "@/lib/validation/evaluation";
 // GET /api/sessions/[id]/evaluate
 // Returns whether the authenticated student has already evaluated this session.
 export async function GET(
-  _req: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const actor = await requireUser(["STUDENT"]);
     const { id } = await params;
-    const result = await getEvaluationStatus(actor, id);
+    const mentorId = new URL(request.url).searchParams.get("mentorId") ?? undefined;
+    const result = await getEvaluationStatus(actor, id, mentorId);
     return NextResponse.json(result);
   } catch (error) {
     return (

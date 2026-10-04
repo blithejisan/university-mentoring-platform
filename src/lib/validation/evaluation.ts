@@ -8,6 +8,7 @@ const ratingField = (label: string) =>
     .max(5, `${label} must be at most 5.`);
 
 export const submitEvaluationSchema = z.object({
+  mentorId: z.string().min(1, "Mentor selection is required."),
   overallRating: ratingField("Overall rating"),
   communicationRating: ratingField("Communication rating").optional(),
   helpfulnessRating: ratingField("Helpfulness rating").optional(),

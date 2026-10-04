@@ -15,9 +15,12 @@ interface SessionWithEvaluation {
   date: string;
   topic: string | null;
   status: string;
-  hasEvaluated: boolean;
   batch: { id: string; name: string };
-  mentor: { universityIdNumber: string };
+  mentors: {
+    id: string;
+    universityIdNumber: string;
+    hasEvaluated: boolean;
+  }[];
 }
 
 export function StudentSessionEvaluations() {
@@ -56,8 +59,24 @@ export function StudentSessionEvaluations() {
     setTimeout(() => setSuccessMessage(null), 5000);
   };
 
-  const pendingEval = sessions.filter((s) => !s.hasEvaluated);
-  const completed = sessions.filter((s) => s.hasEvaluated);
+  const pendingEval = sessions.filter((session) =>
+    session.mentors.some((mentor) => !mentor.hasEvaluated)
+  );
+  const completed = sessions.filter(
+    (session) =>
+      session.mentors.length > 0 &&
+      session.mentors.every((mentor) => mentor.hasEvaluated)
+  );
+  const pendingMentorCount = sessions.reduce(
+    (count, session) =>
+      count + session.mentors.filter((mentor) => !mentor.hasEvaluated).length,
+    0
+  );
+  const submittedMentorCount = sessions.reduce(
+    (count, session) =>
+      count + session.mentors.filter((mentor) => mentor.hasEvaluated).length,
+    0
+  );
 
   return (
     <div className="space-y-6">
@@ -67,6 +86,12 @@ export function StudentSessionEvaluations() {
           sessionTopic={evaluatingSession.topic}
           sessionDate={evaluatingSession.date}
           batchName={evaluatingSession.batch.name}
+          mentors={evaluatingSession.mentors
+            .filter((mentor) => !mentor.hasEvaluated)
+            .map((mentor) => ({
+              id: mentor.id,
+              label: mentor.universityIdNumber,
+            }))}
           onSuccess={handleEvaluationSuccess}
           onCancel={() => setEvaluatingSession(null)}
         />
@@ -78,12 +103,12 @@ export function StudentSessionEvaluations() {
             Mentor Evaluations
           </h2>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Rate your mentor&apos;s performance for completed sessions.
+            Rate your mentor&apos;s performance for completed sessions. Your identity is not shown with feedback shared with mentors.
           </p>
         </div>
         {!loading && (
           <span className="text-sm text-muted-foreground">
-            {pendingEval.length} pending &bull; {completed.length} submitted
+            {pendingMentorCount} pending &bull; {submittedMentorCount} submitted
           </span>
         )}
       </div>
@@ -131,9 +156,16 @@ export function StudentSessionEvaluations() {
                         </p>
                         <p className="text-xs text-muted-foreground mt-0.5">
                           {session.batch.name} &bull;{" "}
-                          {new Date(session.date).toLocaleDateString()} &bull;
-                          Mentor: {session.mentor.universityIdNumber}
+                          {new Date(session.date).toLocaleDateString()}
                         </p>
+                        <div className="mt-1 flex flex-wrap gap-2 text-xs">
+                          {session.mentors.map((mentor) => (
+                            <span key={mentor.id} className="text-muted-foreground">
+                              {mentor.universityIdNumber}:{" "}
+                              {mentor.hasEvaluated ? "Evaluated" : "Awaiting evaluation"}
+                            </span>
+                          ))}
+                        </div>
                       </div>
                       <button
                         id={`eval-btn-${session.id}`}
@@ -141,7 +173,7 @@ export function StudentSessionEvaluations() {
                         onClick={() => setEvaluatingSession(session)}
                         className="ml-4 px-4 py-1.5 text-xs font-semibold rounded-md bg-amber-500 text-white hover:bg-amber-600 transition-colors shrink-0"
                       >
-                        Evaluate Mentor
+                        Evaluate Mentor(s)
                       </button>
                     </div>
                   ))}
@@ -175,6 +207,11 @@ export function StudentSessionEvaluations() {
                         <p className="text-xs text-muted-foreground mt-0.5">
                           {session.batch.name} &bull;{" "}
                           {new Date(session.date).toLocaleDateString()}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Mentors: {session.mentors
+                            .map((mentor) => mentor.universityIdNumber)
+                            .join(", ")}
                         </p>
                       </div>
                       <span className="text-xs px-2.5 py-1 bg-emerald-500/10 text-emerald-700 rounded font-medium shrink-0">

@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export const createSessionSchema = z.object({
   batchId: z.string().min(1, "Batch ID is required"),
+  mentorIds: z.array(z.string().min(1)).min(1).optional(),
   date: z.string().min(1, "Session date is required"),
   startTime: z.string().optional(),
   endTime: z.string().optional(),

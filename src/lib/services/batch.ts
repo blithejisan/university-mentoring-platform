@@ -236,12 +236,14 @@ export async function getBatchDetails(actor: AccessTokenPayload, batchId: string
           mentor: {
             select: {
               userId: true,
+              approvalStatus: true,
               user: {
                 select: {
                   id: true,
                   universityIdNumber: true,
                   name: true,
                   email: true,
+                  status: true,
                 },
               },
             },

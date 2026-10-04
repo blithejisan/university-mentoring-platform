@@ -9,38 +9,19 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 
-interface EvaluationRecord {
-  id: string;
-  overallRating: number;
-  communicationRating: number | null;
-  helpfulnessRating: number | null;
-  sessionQualityRating: number | null;
-  supportRating: number | null;
-  comment: string | null;
-  createdAt: string;
-  session: {
-    id: string;
-    date: string;
-    topic: string | null;
-    batch: { id: string; name: string };
-  };
-  student: {
-    user: { universityIdNumber: string; email: string };
-  };
-}
-
 interface Stats {
   totalEvaluations: number;
   averageOverall: number | null;
   averageCommunication: number | null;
   averageHelpfulness: number | null;
   averageSessionQuality: number | null;
-  averageSupport: number | null;
 }
 
-interface ApiResponse {
-  evaluations: EvaluationRecord[];
-  stats: Stats;
+interface SessionEvaluation {
+  session: { date: string; topic: string | null };
+  hasEnoughResponses: boolean;
+  stats: Stats | null;
+  feedback: string[] | null;
 }
 
 function StarDisplay({ value }: { value: number | null }) {
@@ -86,7 +67,7 @@ function StatCard({
 }
 
 export function MentorEvaluationsDashboard() {
-  const [data, setData] = useState<ApiResponse | null>(null);
+  const [data, setData] = useState<SessionEvaluation[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -121,120 +102,86 @@ export function MentorEvaluationsDashboard() {
   if (error) return <p className="text-sm text-red-500">{error}</p>;
   if (!data) return null;
 
-  const { evaluations, stats } = data;
-
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-semibold text-foreground">
-          My Evaluations
+          Anonymous Mentor Evaluations
         </h2>
         <p className="text-sm text-muted-foreground mt-0.5">
-          Feedback submitted by students for your mentoring sessions.
+          Student identities are never included. Ratings are aggregated per session, and comments are shown only after at least 3 responses.
         </p>
       </div>
 
-      {/* Stats strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <Card className="col-span-2 sm:col-span-3 lg:col-span-2 flex flex-col justify-center items-center py-4 bg-primary/5 border-primary/20">
-          <p className="text-4xl font-bold text-primary">
-            {stats.totalEvaluations}
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Total Evaluations
-          </p>
-        </Card>
-        <StatCard label="Overall" value={stats.averageOverall} />
-        <StatCard label="Communication" value={stats.averageCommunication} />
-        <StatCard label="Helpfulness" value={stats.averageHelpfulness} />
-        <StatCard label="Session Quality" value={stats.averageSessionQuality} />
-      </div>
-
-      {/* Evaluation list */}
-      {evaluations.length === 0 ? (
+      {data.length === 0 ? (
         <Card>
           <CardContent className="py-7 text-center text-sm font-medium text-slate-700">
-            No evaluations received yet.
+            No completed sessions are available for evaluation results.
           </CardContent>
         </Card>
       ) : (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Evaluation History</CardTitle>
-            <CardDescription>
-              Most recent evaluations from students.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="divide-y max-h-[500px] overflow-y-auto">
-              {evaluations.map((ev) => (
-                <div key={ev.id} className="px-5 py-4 text-sm hover:bg-muted/30 transition-colors">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-foreground truncate">
-                        {ev.session.topic ?? "Mentoring Session"}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {ev.session.batch.name} &bull;{" "}
-                        {new Date(ev.session.date).toLocaleDateString()} &bull;
-                        Student: {ev.student.user.universityIdNumber}
-                      </p>
+        <div className="space-y-4">
+          {data.map((result, index) => (
+            <Card key={`${result.session.date}-${index}`}>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">
+                  {result.session.topic ?? "Mentoring Session"}
+                </CardTitle>
+                <CardDescription>
+                  {new Date(result.session.date).toLocaleDateString()}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {!result.hasEnoughResponses || !result.stats ? (
+                  <p className="rounded-md bg-amber-500/10 px-3 py-2 text-sm text-amber-800">
+                    Ratings and feedback are hidden until at least 3 students
+                    have submitted an evaluation for this session.
+                  </p>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+                      <Card className="col-span-2 flex flex-col items-center justify-center bg-primary/5 py-4 sm:col-span-3 lg:col-span-1">
+                        <p className="text-4xl font-bold text-primary">
+                          {result.stats.totalEvaluations}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Total Evaluations
+                        </p>
+                      </Card>
+                      <StatCard label="Overall" value={result.stats.averageOverall} />
+                      <StatCard label="Communication" value={result.stats.averageCommunication} />
+                      <StatCard label="Helpfulness" value={result.stats.averageHelpfulness} />
+                      <StatCard label="Session Quality" value={result.stats.averageSessionQuality} />
+                    </div>
 
-                      {/* Sub-ratings */}
-                      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
-                        {ev.communicationRating !== null && (
-                          <span className="text-xs text-muted-foreground">
-                            Communication:{" "}
-                            <span className="text-amber-500 font-medium">
-                              {"★".repeat(ev.communicationRating)}
-                            </span>
-                          </span>
-                        )}
-                        {ev.helpfulnessRating !== null && (
-                          <span className="text-xs text-muted-foreground">
-                            Helpfulness:{" "}
-                            <span className="text-amber-500 font-medium">
-                              {"★".repeat(ev.helpfulnessRating)}
-                            </span>
-                          </span>
-                        )}
-                        {ev.sessionQualityRating !== null && (
-                          <span className="text-xs text-muted-foreground">
-                            Session Quality:{" "}
-                            <span className="text-amber-500 font-medium">
-                              {"★".repeat(ev.sessionQualityRating)}
-                            </span>
-                          </span>
-                        )}
-                        {ev.supportRating !== null && (
-                          <span className="text-xs text-muted-foreground">
-                            Support:{" "}
-                            <span className="text-amber-500 font-medium">
-                              {"★".repeat(ev.supportRating)}
-                            </span>
-                          </span>
-                        )}
+                    {result.feedback === null ? (
+                      <p className="text-sm text-muted-foreground">
+                        Written comments are hidden until at least 3 students
+                        have left feedback.
+                      </p>
+                    ) : result.feedback.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        No written feedback has been submitted.
+                      </p>
+                    ) : (
+                      <div className="space-y-3">
+                        <h3 className="text-sm font-medium">Anonymous Written Feedback</h3>
+                        {result.feedback.map((comment, commentIndex) => (
+                          <blockquote
+                            key={commentIndex}
+                            className="border-l-2 border-primary/30 pl-3 text-sm italic text-muted-foreground"
+                          >
+                            &ldquo;{comment}&rdquo;
+                          </blockquote>
+                        ))}
                       </div>
-
-                      {ev.comment && (
-                        <blockquote className="mt-2 border-l-2 border-primary/30 pl-3 text-xs italic text-muted-foreground">
-                          &ldquo;{ev.comment}&rdquo;
-                        </blockquote>
-                      )}
-                    </div>
-
-                    <div className="text-right shrink-0">
-                      <StarDisplay value={ev.overallRating} />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {new Date(ev.createdAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                    )}
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       )}
     </div>
   );

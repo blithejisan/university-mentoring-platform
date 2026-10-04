@@ -234,6 +234,7 @@ model MentorProfile {
 
   mentorBatches     MentorBatch[]
   mentorEvaluations MentorEvaluation[]
+  sessionAssignments SessionMentor[]
 
   @@index([departmentId, approvalStatus])
   @@map("mentor_profiles")
@@ -324,12 +325,25 @@ model AttendanceSession {
   mentor User  @relation("SessionMentor", fields: [mentorId], references: [id])
 
   attendanceRecords AttendanceRecord[]
+  sessionMentors    SessionMentor[]
   mentorEvaluations MentorEvaluation[]
   emailLogs         EmailLog[]
   notifications     Notification[]
 
   @@index([batchId, date])
   @@map("attendance_sessions")
+}
+
+model SessionMentor {
+  sessionId String @map("session_id")
+  mentorId  String @map("mentor_id")
+
+  session AttendanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  mentor  MentorProfile     @relation(fields: [mentorId], references: [userId], onDelete: Cascade)
+
+  @@id([sessionId, mentorId])
+  @@index([mentorId])
+  @@map("session_mentors")
 }
 
 model AttendanceRecord {
@@ -610,7 +624,7 @@ model MentorEvaluation {
   session AttendanceSession @relation(fields: [sessionId], references: [id])
   batch   Batch             @relation(fields: [batchId], references: [id])
 
-  @@unique([studentId, sessionId])
+  @@unique([studentId, sessionId, mentorId])
   @@index([mentorId])
   @@index([sessionId])
   @@index([batchId])

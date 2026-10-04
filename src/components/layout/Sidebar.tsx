@@ -9,6 +9,7 @@ import {
   FileText,
   LayoutDashboard,
   Layers3,
+  Star,
   UserRound,
   UsersRound,
 } from "lucide-react";
@@ -53,6 +54,7 @@ const roleItems: Record<string, SidebarItem[]> = {
     { label: "Batches", href: "/student/batches", icon: Layers3 },
     { label: "Sessions", href: "/student/dashboard#sessions", icon: CalendarDays },
     { label: "Lab Report Generator", href: "/student/lab-report-generator", icon: FileText },
+    { label: "Mentor Evaluation", href: "/student/evaluations", icon: Star },
     studentPortalItem,
   ],
 };

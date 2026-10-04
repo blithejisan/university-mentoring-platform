@@ -15,6 +15,7 @@ interface Props {
   sessionTopic: string | null;
   sessionDate: string;
   batchName: string;
+  mentors: { id: string; label: string }[];
   onSuccess: () => void;
   onCancel: () => void;
 }
@@ -76,6 +77,7 @@ export function EvaluateMentorModal({
   sessionTopic,
   sessionDate,
   batchName,
+  mentors,
   onSuccess,
   onCancel,
 }: Props) {
@@ -84,6 +86,7 @@ export function EvaluateMentorModal({
   const [helpfulnessRating, setHelpfulnessRating] = useState(0);
   const [sessionQualityRating, setSessionQualityRating] = useState(0);
   const [supportRating, setSupportRating] = useState(0);
+  const [mentorId, setMentorId] = useState(mentors[0]?.id ?? "");
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -96,10 +99,14 @@ export function EvaluateMentorModal({
       setError("Please provide an overall rating before submitting.");
       return;
     }
+    if (!mentors.some((mentor) => mentor.id === mentorId)) {
+      setError("Please select a mentor assigned to this session.");
+      return;
+    }
 
     setSubmitting(true);
     try {
-      const body: Record<string, unknown> = { overallRating };
+      const body: Record<string, unknown> = { mentorId, overallRating };
       if (communicationRating > 0) body.communicationRating = communicationRating;
       if (helpfulnessRating > 0) body.helpfulnessRating = helpfulnessRating;
       if (sessionQualityRating > 0) body.sessionQualityRating = sessionQualityRating;
@@ -152,6 +159,25 @@ export function EvaluateMentorModal({
 
         <CardContent className="pt-5">
           <form onSubmit={handleSubmit} className="flex flex-col gap-5" id="eval-form">
+            <div className="flex flex-col gap-1">
+              <label htmlFor="eval-mentor" className="text-sm font-medium text-foreground">
+                Mentor for this session
+              </label>
+              <select
+                id="eval-mentor"
+                value={mentorId}
+                onChange={(event) => setMentorId(event.target.value)}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                required
+              >
+                {mentors.map((mentor) => (
+                  <option key={mentor.id} value={mentor.id}>
+                    {mentor.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             {/* Required */}
             <StarRating
               id="eval-overall"
@@ -203,7 +229,7 @@ export function EvaluateMentorModal({
                 onChange={(e) => setComment(e.target.value)}
                 maxLength={2000}
                 rows={3}
-                placeholder="Share your experience with this session..."
+                placeholder="Share your experience. Please do not include names, student IDs, or email addresses."
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
               />
               <p className="text-xs text-muted-foreground text-right">

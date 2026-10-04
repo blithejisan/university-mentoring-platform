@@ -48,30 +48,40 @@ async function notifySessionParticipants(sessionId: string, message: string, eve
   try {
     const session = await prisma.attendanceSession.findUnique({
       where: { id: sessionId },
-      include: { batch: { include: { department: true } } },
+      include: {
+        batch: { include: { department: true } },
+        sessionMentors: {
+          include: {
+            mentor: {
+              select: {
+                userId: true,
+                approvalStatus: true,
+                departmentId: true,
+                user: { select: { universityId: true, status: true } },
+              },
+            },
+          },
+        },
+      },
     });
     if (!session) return;
-    const [students, mentorAssignment] = await Promise.all([
-      prisma.studentBatch.findMany({
+    const students = await prisma.studentBatch.findMany({
         where: {
           batchId: session.batchId,
           ...sessionMembershipEligibility(session),
           student: { departmentId: session.batch.departmentId, user: { status: "ACTIVE", universityId: session.batch.department.universityId } },
         },
         select: { studentId: true },
-      }),
-      prisma.mentorBatch.findUnique({
-        where: { mentorId_batchId: { mentorId: session.mentorId, batchId: session.batchId } },
-        include: { mentor: { select: { approvalStatus: true, departmentId: true, user: { select: { universityId: true, status: true } } } } },
-      }),
-    ]);
+      });
     const userIds = students.map(({ studentId }) => studentId);
-    if (
-      mentorAssignment?.mentor.approvalStatus === "APPROVED" &&
-      mentorAssignment.mentor.user.status === "ACTIVE" &&
-      mentorAssignment.mentor.departmentId === session.batch.departmentId &&
-      mentorAssignment.mentor.user.universityId === session.batch.department.universityId
-    ) userIds.push(session.mentorId);
+    for (const { mentor } of session.sessionMentors) {
+      if (
+        mentor.approvalStatus === "APPROVED" &&
+        mentor.user.status === "ACTIVE" &&
+        mentor.departmentId === session.batch.departmentId &&
+        mentor.user.universityId === session.batch.department.universityId
+      ) userIds.push(mentor.userId);
+    }
     await createSessionNotifications(userIds, session.id, message, `session:${session.id}:${eventKey}`);
   } catch {
     // Session creation and editing must not depend on inbox delivery.
@@ -91,7 +101,7 @@ export async function dispatchSessionReminders(now = new Date()) {
     const startsAt = session.startTime ?? session.date;
     if (startsAt <= now || startsAt.getTime() - 24 * 60 * 60 * 1000 > now.getTime()) continue;
     try {
-      const [studentMemberships, mentorAssignment] = await Promise.all([
+      const [studentMemberships, sessionMentors] = await Promise.all([
         prisma.studentBatch.findMany({
           where: {
             batchId: session.batchId,
@@ -100,15 +110,33 @@ export async function dispatchSessionReminders(now = new Date()) {
           },
           select: { student: { select: { user: { select: { id: true, email: true, name: true, role: true, universityId: true } } } } },
         }),
-        prisma.mentorBatch.findUnique({
-          where: { mentorId_batchId: { mentorId: session.mentorId, batchId: session.batchId } },
-          select: { mentor: { select: { approvalStatus: true, departmentId: true, user: { select: { id: true, email: true, name: true, role: true, status: true, universityId: true } } } } },
+        prisma.sessionMentor.findMany({
+          where: { sessionId: session.id },
+          select: {
+            mentor: {
+              select: {
+                approvalStatus: true,
+                departmentId: true,
+                user: {
+                  select: {
+                    id: true,
+                    email: true,
+                    name: true,
+                    role: true,
+                    status: true,
+                    universityId: true,
+                  },
+                },
+              },
+            },
+          },
         }),
       ]);
       const recipients = studentMemberships.map(({ student }) => student.user);
-      const mentor = mentorAssignment?.mentor;
-      if (mentor?.approvalStatus === "APPROVED" && mentor.departmentId === session.batch.departmentId && mentor.user.status === "ACTIVE" && mentor.user.universityId === session.batch.department.universityId) {
-        recipients.push(mentor.user);
+      for (const { mentor } of sessionMentors) {
+        if (mentor.approvalStatus === "APPROVED" && mentor.departmentId === session.batch.departmentId && mentor.user.status === "ACTIVE" && mentor.user.universityId === session.batch.department.universityId) {
+          recipients.push(mentor.user);
+        }
       }
       const dateLabel = startsAt.toLocaleString();
       const details = `${session.topic || "Mentoring session"} for ${session.batch.name} is scheduled for ${dateLabel}${session.location ? ` at ${session.location}` : ""}.`;
@@ -134,33 +162,65 @@ export async function dispatchSessionReminders(now = new Date()) {
 
 export async function createSession(actor: AccessTokenPayload, input: CreateSessionInput) {
   await requireMentorOwnsBatch(actor, input.batchId);
+  const batch = await prisma.batch.findUnique({
+    where: { id: input.batchId },
+    select: { departmentId: true, department: { select: { universityId: true } } },
+  });
+  if (!batch) throw new AuthError("Batch not found.", 404);
 
-  let mentorId = actor.sub;
+  let mentorIds = [...new Set(input.mentorIds ?? [])];
   if (actor.role === "ADMIN" || actor.role === "MODERATOR") {
-    const batch = await prisma.batch.findUnique({
-      where: { id: input.batchId },
-      select: { departmentId: true, department: { select: { universityId: true } } },
-    });
-    if (!batch) throw new AuthError("Batch not found.", 404);
-    const assignedMentor = await prisma.mentorBatch.findFirst({
-      where: {
-        batchId: input.batchId,
-        mentor: {
-          approvalStatus: "APPROVED",
-          departmentId: batch.departmentId,
-          user: { status: "ACTIVE", universityId: batch.department.universityId },
+    if (mentorIds.length === 0) {
+      const assignedMentor = await prisma.mentorBatch.findFirst({
+        where: {
+          batchId: input.batchId,
+          mentor: {
+            approvalStatus: "APPROVED",
+            departmentId: batch.departmentId,
+            user: { status: "ACTIVE", universityId: batch.department.universityId },
+          },
         },
-      },
-      orderBy: { mentorId: "asc" },
-    });
-    if (!assignedMentor) throw new AuthError("Assign an active, approved mentor to this batch before scheduling a session.", 400);
-    mentorId = assignedMentor.mentorId;
+        orderBy: { mentorId: "asc" },
+      });
+      if (!assignedMentor) throw new AuthError("Assign an active, approved mentor to this batch before scheduling a session.", 400);
+      mentorIds = [assignedMentor.mentorId];
+    }
+  } else {
+    if (mentorIds.some((mentorId) => mentorId !== actor.sub)) {
+      throw new AuthError("Mentors can only schedule sessions assigned to themselves.", 403);
+    }
+    mentorIds = [actor.sub];
   }
 
+  const assignments = await prisma.mentorBatch.findMany({
+    where: {
+      batchId: input.batchId,
+      mentorId: { in: mentorIds },
+      mentor: {
+        approvalStatus: "APPROVED",
+        departmentId: batch.departmentId,
+        user: {
+          status: "ACTIVE",
+          universityId: batch.department.universityId,
+        },
+      },
+    },
+    select: { mentorId: true },
+  });
+  if (assignments.length !== mentorIds.length) {
+    throw new AuthError("Every selected mentor must be active, approved, and assigned to this batch.", 400);
+  }
+
+  const mentorId = mentorIds[0];
   const session = await prisma.attendanceSession.create({
     data: {
       batchId: input.batchId,
       mentorId,
+      sessionMentors: {
+        create: mentorIds.map((assignedMentorId) => ({
+          mentor: { connect: { userId: assignedMentorId } },
+        })),
+      },
       date: new Date(input.date),
       startTime: input.startTime ? new Date(input.startTime) : null,
       endTime: input.endTime ? new Date(input.endTime) : null,
@@ -172,6 +232,16 @@ export async function createSession(actor: AccessTokenPayload, input: CreateSess
     include: {
       batch: true,
       mentor: { select: { universityIdNumber: true, email: true } },
+      sessionMentors: {
+        include: {
+          mentor: {
+            select: {
+              userId: true,
+              user: { select: { universityIdNumber: true, email: true } },
+            },
+          },
+        },
+      },
     },
   });
 
@@ -181,7 +251,12 @@ export async function createSession(actor: AccessTokenPayload, input: CreateSess
     action: "SESSION_CREATED",
     targetType: "AttendanceSession",
     targetId: session.id,
-    newValue: { topic: session.topic, date: session.date.toISOString(), batchId: session.batchId },
+    newValue: {
+      topic: session.topic,
+      date: session.date.toISOString(),
+      batchId: session.batchId,
+      mentorIds,
+    },
   });
 
   await notifySessionParticipants(
@@ -294,6 +369,16 @@ export async function listSessionsForBatch(actor: AccessTokenPayload, batchId: s
     orderBy: { date: "desc" },
     include: {
       mentor: { select: { universityIdNumber: true, email: true } },
+      sessionMentors: {
+        include: {
+          mentor: {
+            select: {
+              userId: true,
+              user: { select: { universityIdNumber: true, email: true } },
+            },
+          },
+        },
+      },
       _count: { select: { attendanceRecords: true } },
     },
   });

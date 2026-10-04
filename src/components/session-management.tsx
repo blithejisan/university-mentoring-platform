@@ -20,12 +20,23 @@ interface Session {
     universityIdNumber: string;
     email: string;
   };
+  sessionMentors?: {
+    mentor: {
+      userId: string;
+      user: { universityIdNumber: string; email: string };
+    };
+  }[];
   attendanceRecord?: {
     status: string;
   } | null;
   _count?: {
     attendanceRecords: number;
   };
+}
+
+interface SelectableMentor {
+  id: string;
+  label: string;
 }
 
 interface Props {
@@ -48,9 +59,47 @@ export function SessionList({ batchId, userRole }: Props) {
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [notes, setNotes] = useState("");
+  const [availableMentors, setAvailableMentors] = useState<SelectableMentor[]>([]);
+  const [selectedMentorIds, setSelectedMentorIds] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
   const canCreate = userRole === "ADMIN" || userRole === "MODERATOR" || userRole === "MENTOR";
+
+  async function openCreateModal() {
+    setError(null);
+    if (userRole === "ADMIN" || userRole === "MODERATOR") {
+      try {
+        const res = await fetch(`/api/batches/${batchId}`);
+        if (!res.ok) throw new Error("Failed to load assigned mentors.");
+        const data = await res.json();
+        const mentors: SelectableMentor[] = (data.batch?.mentorBatches ?? [])
+          .filter((assignment: {
+            mentor: {
+              approvalStatus: string;
+              user: { status: string };
+            };
+          }) =>
+            assignment.mentor.approvalStatus === "APPROVED" &&
+            assignment.mentor.user.status === "ACTIVE"
+          )
+          .map((assignment: {
+            mentor: {
+              userId: string;
+              user: { universityIdNumber: string };
+            };
+          }) => ({
+            id: assignment.mentor.userId,
+            label: assignment.mentor.user.universityIdNumber,
+          }));
+        setAvailableMentors(mentors);
+        setSelectedMentorIds(mentors[0] ? [mentors[0].id] : []);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load assigned mentors.");
+        return;
+      }
+    }
+    setShowCreateModal(true);
+  }
 
   useEffect(() => {
     let isMounted = true;
@@ -105,6 +154,7 @@ export function SessionList({ batchId, userRole }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           batchId,
+          ...(userRole !== "MENTOR" ? { mentorIds: selectedMentorIds } : {}),
           date,
           topic: topic || undefined,
           location: location || undefined,
@@ -156,7 +206,7 @@ export function SessionList({ batchId, userRole }: Props) {
           </p>
         </div>
         {canCreate && (
-          <Button onClick={() => setShowCreateModal(true)}>+ Schedule New Session</Button>
+          <Button onClick={openCreateModal}>+ Schedule New Session</Button>
         )}
       </div>
 
@@ -222,7 +272,13 @@ export function SessionList({ batchId, userRole }: Props) {
                       ) : (
                         <>
                           <div>
-                            Mentor: <span className="font-semibold text-foreground">{s.mentor?.universityIdNumber}</span>
+                            Mentors: <span className="font-semibold text-foreground">
+                              {s.sessionMentors?.length
+                                ? s.sessionMentors
+                                    .map((assignment) => assignment.mentor.user.universityIdNumber)
+                                    .join(", ")
+                                : s.mentor?.universityIdNumber}
+                            </span>
                           </div>
                           <div>
                             Attendance Records: <span className="font-semibold text-foreground">{s._count?.attendanceRecords ?? 0}</span>
@@ -259,6 +315,36 @@ export function SessionList({ batchId, userRole }: Props) {
                   required
                 />
               </div>
+
+              {(userRole === "ADMIN" || userRole === "MODERATOR") && (
+                <fieldset className="space-y-2">
+                  <legend className="text-sm font-medium">Assigned mentors</legend>
+                  {availableMentors.length === 0 ? (
+                    <p className="text-sm text-red-400">
+                      No active, approved mentors are assigned to this batch.
+                    </p>
+                  ) : (
+                    <div className="max-h-32 space-y-2 overflow-y-auto rounded-md border border-slate-700 p-3">
+                      {availableMentors.map((mentor) => (
+                        <label key={mentor.id} className="flex items-center gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={selectedMentorIds.includes(mentor.id)}
+                            onChange={(event) => {
+                              setSelectedMentorIds((current) =>
+                                event.target.checked
+                                  ? [...current, mentor.id]
+                                  : current.filter((id) => id !== mentor.id)
+                              );
+                            }}
+                          />
+                          {mentor.label}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </fieldset>
+              )}
 
               <div className="space-y-1">
                 <Label>Date</Label>
@@ -304,7 +390,14 @@ export function SessionList({ batchId, userRole }: Props) {
                 <Button type="button" variant="outline" onClick={() => setShowCreateModal(false)}>
                   Cancel
                 </Button>
-                <Button type="submit" disabled={submitting}>
+                <Button
+                  type="submit"
+                  disabled={
+                    submitting ||
+                    ((userRole === "ADMIN" || userRole === "MODERATOR") &&
+                      selectedMentorIds.length === 0)
+                  }
+                >
                   {submitting ? "Scheduling..." : "Schedule Session"}
                 </Button>
               </div>
