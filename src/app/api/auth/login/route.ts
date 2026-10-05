@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     { status: 401 }
   );
 
-  if (!user) return genericError;
+  if (!user || !user.isRegistered) return genericError;
 
   const passwordOk = await verifyPassword(password, user.passwordHash);
   if (!passwordOk) return genericError;

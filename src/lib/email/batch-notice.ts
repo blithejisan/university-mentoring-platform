@@ -34,22 +34,38 @@ export async function sendBatchNoticeEmails(noticeId: string) {
   const notice = await prisma.batchNotice.findUnique({
     where: { id: noticeId },
     include: {
-      batch: { select: { id: true, name: true } },
+      batch: {
+        select: {
+          id: true,
+          name: true,
+          departmentId: true,
+          department: { select: { universityId: true } },
+        },
+      },
       author: { select: { name: true } },
     },
   });
   if (!notice || !notice.sendEmailNotification) return;
 
-  const students = await prisma.studentBatch.findMany({
+  const recipients = await prisma.user.findMany({
     where: {
-      batchId: notice.batchId,
-      leftAt: null,
-      student: { user: { role: "STUDENT", status: "ACTIVE" } },
+      status: "ACTIVE",
+      isRegistered: true,
+      universityId: notice.batch.department.universityId,
+      studentProfile: {
+        is: {
+          departmentId: notice.batch.departmentId,
+          OR: [
+            { enrolledBatchId: notice.batchId },
+            { studentBatches: { some: { batchId: notice.batchId, leftAt: null } } },
+          ],
+        },
+      },
     },
-    select: { student: { select: { user: { select: { email: true } } } } },
+    select: { email: true },
   });
 
-  const recipients = [...new Set(students.map(({ student }) => student.user.email))];
+  const emails = [...new Set(recipients.map(({ email }) => email))];
   const attachments = getAttachments(notice.attachments);
   const authorName = notice.author.name ?? "Batch CR";
   const senderName = `${authorName} (CR, Batch ${notice.batch.name}) via Green University ADS Portal`
@@ -85,8 +101,8 @@ export async function sendBatchNoticeEmails(noticeId: string) {
     `Open the batch noticeboard: ${portalUrl}`,
   ].join("\n");
 
-  for (let index = 0; index < recipients.length; index += 20) {
-    const batchRecipients = recipients.slice(index, index + 20);
+  for (let index = 0; index < emails.length; index += 20) {
+    const batchRecipients = emails.slice(index, index + 20);
     await Promise.all(
       batchRecipients.map(async (to) => {
         const result = await sendEmail({

@@ -1,23 +1,31 @@
 import { prisma } from "@/lib/prisma";
-import { AuthError } from "@/lib/auth/guards";
+import { AuthError, requireModeratorOwnsDepartment } from "@/lib/auth/guards";
 import type { AccessTokenPayload } from "@/lib/auth/jwt";
 import type { UpdateCRApplicationInput } from "@/lib/validation/cr";
 import { writeAuditLog } from "@/lib/audit";
 
-async function getAdminUniversityId(actor: AccessTokenPayload) {
+async function getCRScope(actor: AccessTokenPayload) {
   const admin = await prisma.user.findUnique({
     where: { id: actor.sub },
     select: { universityId: true },
   });
-  if (!admin) throw new AuthError("Admin account not found.", 404);
-  return admin.universityId;
+  if (!admin) throw new AuthError("Account not found.", 404);
+  if (actor.role === "ADMIN") return { universityId: admin.universityId, departmentId: null };
+  if (actor.role !== "MODERATOR") throw new AuthError("Not authorized to manage CRs.", 403);
+  const moderator = await prisma.moderatorProfile.findUnique({
+    where: { userId: actor.sub },
+    select: { departmentId: true },
+  });
+  if (!moderator) throw new AuthError("Moderator profile not found.", 403);
+  await requireModeratorOwnsDepartment(actor, moderator.departmentId);
+  return { universityId: admin.universityId, departmentId: moderator.departmentId };
 }
 
 export async function listCRApplications(
   actor: AccessTokenPayload,
   query: string
 ) {
-  const universityId = await getAdminUniversityId(actor);
+  const { universityId, departmentId } = await getCRScope(actor);
   const memberships = {
     where: { leftAt: null },
     select: { batch: { select: { id: true, name: true } } },
@@ -27,9 +35,11 @@ export async function listCRApplications(
     prisma.user.findMany({
       where: {
         universityId,
-        role: "STUDENT",
+        role: { in: ["STUDENT", "MENTOR"] },
         crStatus: "PENDING",
-        studentProfile: { isNot: null },
+        studentProfile: {
+          is: { ...(departmentId ? { departmentId } : {}) },
+        },
       },
       orderBy: { name: "asc" },
       take: 100,
@@ -39,6 +49,7 @@ export async function listCRApplications(
         email: true,
         universityIdNumber: true,
         status: true,
+        role: true,
         crStatus: true,
         studentProfile: { select: { studentBatches: memberships } },
       },
@@ -47,8 +58,10 @@ export async function listCRApplications(
       ? prisma.user.findMany({
           where: {
             universityId,
-            role: "STUDENT",
-            studentProfile: { isNot: null },
+            role: { in: ["STUDENT", "MENTOR"] },
+            studentProfile: {
+              is: { ...(departmentId ? { departmentId } : {}) },
+            },
             OR: [
               { universityIdNumber: { contains: query, mode: "insensitive" } },
               { email: { contains: query, mode: "insensitive" } },
@@ -62,6 +75,7 @@ export async function listCRApplications(
             email: true,
             universityIdNumber: true,
             status: true,
+            role: true,
             isCR: true,
             crStatus: true,
             crBatch: { select: { id: true, name: true } },
@@ -89,14 +103,17 @@ export async function updateCRApplication(
   actor: AccessTokenPayload,
   input: UpdateCRApplicationInput
 ) {
-  const universityId = await getAdminUniversityId(actor);
+  const { universityId, departmentId } = await getCRScope(actor);
   if (input.action === "REJECT") {
     const target = await prisma.user.findFirst({
       where: {
         id: input.userId,
         universityId,
-        role: "STUDENT",
         crStatus: "PENDING",
+        role: { in: ["STUDENT", "MENTOR"] },
+        studentProfile: {
+          is: { ...(departmentId ? { departmentId } : {}) },
+        },
       },
       select: { id: true, crStatus: true },
     });
@@ -123,8 +140,11 @@ export async function updateCRApplication(
 
   const { batchId, userId } = input;
   const batch = await prisma.batch.findFirst({
-    where: { id: batchId, department: { universityId } },
-    select: { id: true },
+    where: {
+      id: batchId,
+      department: { universityId, ...(departmentId ? { id: departmentId } : {}) },
+    },
+    select: { id: true, departmentId: true },
   });
   if (!batch) throw new AuthError("Batch not found in your university.", 404);
 
@@ -135,10 +155,13 @@ export async function updateCRApplication(
       where: {
         id: userId,
         universityId,
-        role: "STUDENT",
+        role: { in: ["STUDENT", "MENTOR"] },
         status: { notIn: ["REJECTED", "SUSPENDED"] },
         studentProfile: {
-          is: { studentBatches: { some: { batchId, leftAt: null } } },
+          is: {
+            departmentId: batch.departmentId,
+            studentBatches: { some: { batchId, leftAt: null } },
+          },
         },
       },
       select: { id: true, crStatus: true, crBatchId: true, isCR: true },
@@ -147,27 +170,31 @@ export async function updateCRApplication(
       throw new AuthError("A valid student assigned to the selected batch was not found.", 404);
     }
 
-    if (target.isCR && target.crStatus === "APPROVED" && target.crBatchId === batchId) {
-      return target;
-    }
+    let result = target;
+    if (!(target.isCR && target.crStatus === "APPROVED" && target.crBatchId === batchId)) {
+      const approvedCount = await tx.user.count({
+        where: { crBatchId: batchId, isCR: true, crStatus: "APPROVED" },
+      });
+      if (approvedCount >= 3) {
+        throw new AuthError("This batch already has the maximum of 3 approved CRs.", 409);
+      }
 
-    const approvedCount = await tx.user.count({
-      where: { crBatchId: batchId, isCR: true, crStatus: "APPROVED" },
-    });
-    if (approvedCount >= 3) {
-      throw new AuthError("This batch already has the maximum of 3 approved CRs.", 409);
+      result = await tx.user.update({
+        where: { id: target.id },
+        data: {
+          isCR: true,
+          crStatus: "APPROVED",
+          crApprovedAt: new Date(),
+          crBatchId: batchId,
+        },
+        select: { id: true, isCR: true, crStatus: true, crBatchId: true },
+      });
     }
-
-    return tx.user.update({
-      where: { id: target.id },
-      data: {
-        isCR: true,
-        crStatus: "APPROVED",
-        crApprovedAt: new Date(),
-        crBatchId: batchId,
-      },
-      select: { id: true, isCR: true, crStatus: true, crBatchId: true },
+    await tx.studentProfile.update({
+      where: { userId: target.id },
+      data: { enrolledBatchId: batchId },
     });
+    return result;
   });
 
   await writeAuditLog({

@@ -17,7 +17,13 @@ export async function GET() {
       universityIdNumber: true,
       email: true,
       mentorProfile: { select: { approvalStatus: true, departmentId: true } },
-      studentProfile: { select: { departmentId: true } },
+      studentProfile: {
+        select: {
+          departmentId: true,
+          enrolledBatchId: true,
+          enrolledBatch: { select: { id: true, name: true } },
+        },
+      },
       moderatorProfile: { select: { departmentId: true } },
     },
   });

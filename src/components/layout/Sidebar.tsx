@@ -55,6 +55,7 @@ const roleItems: Record<string, SidebarItem[]> = {
     { label: "Batches", href: "/moderator/batches", icon: Layers3, group: "Management" },
     { label: "Sessions", href: "/moderator/dashboard#sessions", icon: CalendarDays, group: "Management" },
     { label: "Mentors", href: "/moderator/mentors", icon: UsersRound, group: "Management" },
+    { label: "CR Management", href: "/moderator/cr-management", icon: UserCheck, group: "Management" },
     { label: "Mentor Applications", href: "/moderator/mentors/pending", icon: UserCheck, group: "Quick access" },
     { label: "Coordination Hub", href: "/moderator/coordination", icon: MessageSquare, group: "Quick access" },
     { label: "Batch Performance", href: "/moderator/dashboard#batch-performance", icon: BarChart3, group: "Quick access" },
@@ -67,6 +68,8 @@ const roleItems: Record<string, SidebarItem[]> = {
     { label: "Mentors", href: "/mentor/mentors", icon: UsersRound, group: "Workspace" },
     { label: "Session Notices", href: "/mentor/dashboard#notices", icon: BellRing, group: "Quick access" },
     { label: "Coordination Hub", href: "/mentor/coordination", icon: MessageSquare, group: "Quick access" },
+    { label: "My Batch", href: "/student/my-batch", icon: Megaphone, group: "Student workspace" },
+    { label: "Lab Report Generator", href: "/student/lab-report-generator", icon: FileText, group: "Student workspace" },
     { label: "Session Remarks", href: "/mentor/dashboard#remarks", icon: MessageSquareText, group: "Quick access" },
     { label: "My Evaluation", href: "/mentor/dashboard#my-evaluation", icon: Award, group: "Quick access" },
     studentPortalItem,
@@ -87,7 +90,9 @@ const roleItems: Record<string, SidebarItem[]> = {
 export function Sidebar() {
   const pathname = usePathname();
   const [hash, setHash] = useState("");
-  const role = pathname.split("/")[1];
+  const [accountRole, setAccountRole] = useState<string | null>(null);
+  const routeRole = pathname.split("/")[1];
+  const role = routeRole === "student" && accountRole === "MENTOR" ? "mentor" : routeRole;
   const items = roleItems[role] ?? [];
 
   useEffect(() => {
@@ -96,6 +101,19 @@ export function Sidebar() {
     window.addEventListener("hashchange", updateHash);
     return () => window.removeEventListener("hashchange", updateHash);
   }, [pathname]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/me")
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        if (!cancelled && data?.user?.role) setAccountRole(data.user.role);
+      })
+      .catch((error) => console.error("Could not load navigation role.", error));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   if (!items.length && pathname !== "/profile") return null;
 

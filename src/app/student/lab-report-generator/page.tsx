@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/session";
+import { prisma } from "@/lib/prisma";
 
 export const metadata = {
   title: "Lab Report Generator | GUB ADS",
@@ -10,7 +11,12 @@ export const metadata = {
 export default async function LabReportGeneratorPage() {
   const session = await getCurrentUser();
   if (!session) redirect("/login");
-  if (session.role !== "STUDENT") redirect("/");
+  if (session.role !== "STUDENT" && session.role !== "MENTOR") redirect("/");
+  const user = await prisma.user.findUnique({
+    where: { id: session.sub },
+    select: { status: true, studentProfile: { select: { userId: true } } },
+  });
+  if (user?.status !== "ACTIVE" || !user.studentProfile) redirect("/");
 
   const generatorHtml = await readFile(
     join(process.cwd(), "src/features/lab-report-generator/labweb.html"),

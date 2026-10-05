@@ -17,6 +17,7 @@ interface Student {
   phone: string | null;
   user: {
     id: string;
+    role: "STUDENT" | "MENTOR";
     universityIdNumber: string;
     name: string | null;
     email: string;
@@ -63,6 +64,7 @@ interface BatchDetails {
 interface SearchStudentResult {
   userId: string;
   user: {
+    role: "STUDENT" | "MENTOR";
     universityIdNumber: string;
     email: string;
   };
@@ -848,6 +850,7 @@ export function BatchDetailsView({ batchId, userRole }: Props) {
                         <div key={s.userId} className="flex items-center justify-between p-2">
                           <div>
                             <span className="font-semibold">{s.user.universityIdNumber}</span>
+                            {s.user.role === "MENTOR" && <span className="ml-2 text-xs text-cyan-700">Mentor + student</span>}
                             <span className="text-xs text-muted-foreground ml-2">({s.user.email})</span>
                           </div>
                           {isAssigned ? (
@@ -889,6 +892,7 @@ export function BatchDetailsView({ batchId, userRole }: Props) {
                   <div key={sb.studentId} className="flex items-center justify-between p-3 text-sm">
                     <div>
                       <p className="font-semibold">{sb.student.user.universityIdNumber}</p>
+                      {sb.student.user.role === "MENTOR" && <p className="text-xs font-medium text-cyan-700">Mentor + student</p>}
                       {sb.student.user.name && <p className="text-xs text-slate-700">{sb.student.user.name}</p>}
                       <p className="text-xs text-muted-foreground">{sb.student.user.email}</p>
                       {sb.student.phone && <p className="text-xs text-muted-foreground">{sb.student.phone}</p>}

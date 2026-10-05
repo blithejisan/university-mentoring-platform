@@ -5,7 +5,7 @@ import { updateCRApplicationSchema } from "@/lib/validation/cr";
 
 export async function GET(request: NextRequest) {
   try {
-    const actor = await requireUser(["ADMIN"]);
+    const actor = await requireUser(["ADMIN", "MODERATOR"]);
     const query = new URL(request.url).searchParams.get("q")?.trim() ?? "";
     const result = await listCRApplications(actor, query);
     return NextResponse.json(result);
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const actor = await requireUser(["ADMIN"]);
+    const actor = await requireUser(["ADMIN", "MODERATOR"]);
     let body: unknown;
     try {
       body = await request.json();

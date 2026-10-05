@@ -26,6 +26,7 @@ export async function POST(request: NextRequest) {
     );
   }
   const input = parsed.data;
+  const universityIdNumber = input.universityIdNumber.trim();
 
   const retryAfter = await consumeRateLimit(
     "registration:ip",
@@ -46,58 +47,82 @@ export async function POST(request: NextRequest) {
   // universityIdNumber is globally unique across the whole university
   // (locked Phase 0 decision) — enforced here and by the DB constraint.
   const existing = await prisma.user.findUnique({
-    where: { universityIdNumber: input.universityIdNumber },
+    where: { universityIdNumber },
     include: { studentProfile: true },
   });
-  const canCompletePrecreatedStudent = Boolean(
+  const canClaimImportedStudent = Boolean(
     input.role === "STUDENT" &&
     existing?.role === "STUDENT" &&
+    !existing.isRegistered &&
     existing.status === "PENDING_VERIFICATION" &&
     existing.emailVerifiedAt === null &&
-    existing.email === input.email &&
     existing.studentProfile?.departmentId === input.departmentId
   );
-  if (existing && !canCompletePrecreatedStudent) {
+  if (existing && !canClaimImportedStudent) {
     return NextResponse.json(
-      { error: "This Student/University ID is already registered." },
+      {
+        error: existing.isRegistered
+          ? "This Student/University ID has already been registered and claimed."
+          : "This Student/University ID is not available for registration in the selected department.",
+      },
       { status: 409 }
     );
   }
 
-  const existingEmail = await prisma.user.findUnique({ where: { email: input.email } });
-  if (existingEmail && existingEmail.id !== existing?.id) {
+  const universityEmail = input.universityEmail ?? input.altEmail;
+  const submittedEmails = [...new Set([input.email, universityEmail].filter((email): email is string => Boolean(email)))];
+  const emailOwner = await prisma.user.findFirst({
+    where: {
+      ...(existing ? { id: { not: existing.id } } : {}),
+      OR: [
+        { email: { in: submittedEmails } },
+        { altEmail: { in: submittedEmails } },
+      ],
+    },
+    select: { id: true },
+  });
+  if (emailOwner) {
     return NextResponse.json({ error: "This email address is already registered." }, { status: 409 });
   }
 
   const passwordHash = await hashPassword(input.password);
 
-  let user: User;
+  let user: User | null;
   try {
     user = await prisma.$transaction(async (tx) => {
-      if (existing && canCompletePrecreatedStudent) {
+      if (existing && canClaimImportedStudent && input.role === "STUDENT") {
+        const claim = await tx.user.updateMany({
+          where: {
+            id: existing.id,
+            isRegistered: false,
+            status: "PENDING_VERIFICATION",
+            emailVerifiedAt: null,
+          },
+          data: {
+            name: input.name,
+            email: input.email,
+            altEmail: universityEmail ?? existing.altEmail,
+            passwordHash,
+            isRegistered: true,
+            status: "PENDING_VERIFICATION",
+            emailVerifiedAt: null,
+            crStatus:
+              input.applyAsCR && existing.crStatus !== "APPROVED"
+                ? "PENDING"
+                : undefined,
+          },
+        });
+        if (claim.count !== 1) return null;
+
         await tx.emailVerificationToken.deleteMany({
           where: { userId: existing.id, usedAt: null },
         });
         await tx.studentProfile.update({
           where: { userId: existing.id },
-          data: { phone: input.role === "STUDENT" ? input.phone : undefined },
+          data: { phone: input.phone },
         });
-        return tx.user.update({
+        return tx.user.findUniqueOrThrow({
           where: { id: existing.id },
-          data: {
-            name: input.name,
-            email: input.email,
-            altEmail: input.universityEmail ?? input.altEmail,
-            passwordHash,
-            status: "PENDING_VERIFICATION",
-            emailVerifiedAt: null,
-            crStatus:
-              input.role === "STUDENT" &&
-              input.applyAsCR &&
-              existing.crStatus !== "APPROVED"
-                ? "PENDING"
-                : undefined,
-          },
         });
       }
 
@@ -105,11 +130,12 @@ export async function POST(request: NextRequest) {
         data: {
           universityId: department.universityId,
           role: input.role,
-          universityIdNumber: input.universityIdNumber,
+          universityIdNumber,
           name: input.name,
           email: input.email,
-          altEmail: input.universityEmail ?? input.altEmail,
+          altEmail: universityEmail,
           passwordHash,
+          isRegistered: true,
           // Mentors additionally require admin/moderator approval after
           // verifying their email (handled in the verify-email route).
           // Students go straight to ACTIVE once verified.
@@ -118,15 +144,15 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      if (input.role === "STUDENT") {
-        await tx.studentProfile.create({
-          data: {
-            userId: created.id,
-            departmentId: input.departmentId,
-            phone: input.phone,
-          },
-        });
-      } else {
+      await tx.studentProfile.create({
+        data: {
+          userId: created.id,
+          departmentId: input.departmentId,
+          phone: input.role === "STUDENT" ? input.phone : undefined,
+        },
+      });
+
+      if (input.role === "MENTOR") {
         await tx.mentorProfile.create({
           data: {
             userId: created.id,
@@ -146,6 +172,13 @@ export async function POST(request: NextRequest) {
       );
     }
     throw error;
+  }
+
+  if (!user) {
+    return NextResponse.json(
+      { error: "This Student/University ID has already been registered and claimed." },
+      { status: 409 }
+    );
   }
 
   const rawToken = generateRawToken();

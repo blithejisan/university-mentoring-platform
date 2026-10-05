@@ -41,11 +41,11 @@ export async function listNotifications(actor: AccessTokenPayload) {
   const actorUser = await prisma.user.findUnique({ where: { id: actor.sub }, select: { universityId: true } });
   if (!actorUser) throw new AuthError("User not found.", 404);
   const [student, mentor, moderator, assignments, memberships] = await Promise.all([
-    actor.role === "STUDENT" ? prisma.studentProfile.findUnique({ where: { userId: actor.sub }, select: { departmentId: true, user: { select: { universityId: true, status: true } } } }) : null,
+    actor.role === "STUDENT" || actor.role === "MENTOR" ? prisma.studentProfile.findUnique({ where: { userId: actor.sub }, select: { departmentId: true, enrolledBatchId: true, user: { select: { universityId: true, status: true } } } }) : null,
     actor.role === "MENTOR" ? prisma.mentorProfile.findUnique({ where: { userId: actor.sub }, select: { departmentId: true, approvalStatus: true, department: { select: { universityId: true } } } }) : null,
     actor.role === "MODERATOR" ? prisma.moderatorProfile.findUnique({ where: { userId: actor.sub }, select: { departmentId: true } }) : null,
     actor.role === "MENTOR" ? prisma.mentorBatch.findMany({ where: { mentorId: actor.sub }, select: { batchId: true } }) : [],
-    actor.role === "STUDENT" ? prisma.studentBatch.findMany({ where: { studentId: actor.sub, leftAt: null }, select: { batchId: true } }) : [],
+    actor.role === "STUDENT" || actor.role === "MENTOR" ? prisma.studentBatch.findMany({ where: { studentId: actor.sub, leftAt: null }, select: { batchId: true } }) : [],
   ]);
   if (actor.role === "MENTOR") {
     await requireApprovedMentor(actor);
@@ -72,6 +72,7 @@ export async function listNotifications(actor: AccessTokenPayload) {
           targetStudent: { select: { departmentId: true, user: { select: { universityId: true } }, studentBatches: { where: { leftAt: null }, select: { batchId: true } } } },
         },
       },
+      batchNotice: { include: { batch: { include: { department: true } } } },
       session: { include: { batch: { include: { department: true } } } },
       supportNote: {
         include: {
@@ -84,6 +85,17 @@ export async function listNotifications(actor: AccessTokenPayload) {
   });
 
   const visible = notifications.filter((notification) => {
+    if (notification.batchNotice) {
+      const notice = notification.batchNotice;
+      return (
+        !!student &&
+        student.user.status === "ACTIVE" &&
+        student.user.universityId === actorUser.universityId &&
+        notice.batch.departmentId === student.departmentId &&
+        notice.batch.department.universityId === actorUser.universityId &&
+        (student.enrolledBatchId === notice.batchId || studentBatchIds.has(notice.batchId))
+      );
+    }
     if (notification.notice) {
       const notice = notification.notice;
       const now = new Date();
@@ -187,6 +199,7 @@ export async function createUserNotifications(
     noticeId?: string;
     sessionId?: string;
     supportNoteId?: string;
+    batchNoticeId?: string;
   },
   preference: NotificationPreferenceKey
 ) {

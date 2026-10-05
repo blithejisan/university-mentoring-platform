@@ -7,7 +7,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const actor = await requireUser(["ADMIN"]);
+    const actor = await requireUser(["ADMIN", "STUDENT", "MENTOR"]);
     const { id } = await params;
     await deleteBatchNotice(actor, id);
     return NextResponse.json({ success: true });

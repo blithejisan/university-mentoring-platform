@@ -218,6 +218,7 @@ export async function getBatchDetails(actor: AccessTokenPayload, batchId: string
               user: {
                 select: {
                   id: true,
+                  role: true,
                   universityIdNumber: true,
                   name: true,
                   email: true,
@@ -240,6 +241,7 @@ export async function getBatchDetails(actor: AccessTokenPayload, batchId: string
               user: {
                 select: {
                   id: true,
+                  role: true,
                   universityIdNumber: true,
                   name: true,
                   email: true,
@@ -282,21 +284,31 @@ export async function assignStudentToBatch(actor: AccessTokenPayload, batchId: s
 
   if (existingAssignment) {
     if (existingAssignment.leftAt) {
-      // Re-join
-      const updated = await prisma.studentBatch.update({
-        where: { studentId_batchId: { studentId: studentUserId, batchId } },
-        data: { leftAt: null, joinedAt: new Date() },
+      const updated = await prisma.$transaction(async (tx) => {
+        const membership = await tx.studentBatch.update({
+          where: { studentId_batchId: { studentId: studentUserId, batchId } },
+          data: { leftAt: null, joinedAt: new Date() },
+        });
+        await tx.studentProfile.update({
+          where: { userId: studentUserId },
+          data: { enrolledBatchId: batchId },
+        });
+        return membership;
       });
       return updated;
     }
     throw new AuthError("Student is already assigned to this batch.", 409);
   }
 
-  const assignment = await prisma.studentBatch.create({
-    data: {
-      studentId: studentUserId,
-      batchId,
-    },
+  const assignment = await prisma.$transaction(async (tx) => {
+    const membership = await tx.studentBatch.create({
+      data: { studentId: studentUserId, batchId },
+    });
+    await tx.studentProfile.update({
+      where: { userId: studentUserId },
+      data: { enrolledBatchId: batchId },
+    });
+    return membership;
   });
 
   await writeAuditLog({
@@ -325,7 +337,7 @@ export async function addStudentById(actor: AccessTokenPayload, batchId: string,
   let studentUserId: string;
   let linkedExistingStudent = false;
   if (existingUser) {
-    if (existingUser.role !== "STUDENT" || !existingUser.studentProfile || existingUser.studentProfile.departmentId !== batch.departmentId) {
+    if (!existingUser.studentProfile || existingUser.studentProfile.departmentId !== batch.departmentId) {
       throw new AuthError("Student ID is not available in this department.", 404);
     }
     studentUserId = existingUser.id;
@@ -354,6 +366,7 @@ export async function addStudentById(actor: AccessTokenPayload, batchId: string,
           name: input.name!.trim(),
           email: input.email!.trim().toLowerCase(),
           passwordHash,
+          isRegistered: false,
           status: "PENDING_VERIFICATION",
         },
       });
@@ -361,6 +374,7 @@ export async function addStudentById(actor: AccessTokenPayload, batchId: string,
         data: {
           userId: user.id,
           departmentId: batch.departmentId,
+          enrolledBatchId: batchId,
           phone: input.phone?.trim() || null,
         },
       });
@@ -377,11 +391,27 @@ export async function addStudentById(actor: AccessTokenPayload, batchId: string,
   }
 
   const assignment = existingAssignment
-    ? await prisma.studentBatch.update({
-        where: { studentId_batchId: { studentId: studentUserId, batchId } },
-        data: { leftAt: null, joinedAt: new Date() },
+    ? await prisma.$transaction(async (tx) => {
+        const membership = await tx.studentBatch.update({
+          where: { studentId_batchId: { studentId: studentUserId, batchId } },
+          data: { leftAt: null, joinedAt: new Date() },
+        });
+        await tx.studentProfile.update({
+          where: { userId: studentUserId },
+          data: { enrolledBatchId: batchId },
+        });
+        return membership;
       })
-    : await prisma.studentBatch.create({ data: { studentId: studentUserId, batchId } });
+    : await prisma.$transaction(async (tx) => {
+        const membership = await tx.studentBatch.create({
+          data: { studentId: studentUserId, batchId },
+        });
+        await tx.studentProfile.update({
+          where: { userId: studentUserId },
+          data: { enrolledBatchId: batchId },
+        });
+        return membership;
+      });
 
   await writeAuditLog({
     actorId: actor.sub,
@@ -457,6 +487,21 @@ export async function removeStudentFromBatch(actor: AccessTokenPayload, batchId:
       where: { studentId_batchId: { studentId: studentUserId, batchId } },
       data: { leftAt: new Date() },
     });
+    const profile = await tx.studentProfile.findUnique({
+      where: { userId: studentUserId },
+      select: { enrolledBatchId: true },
+    });
+    if (profile?.enrolledBatchId === batchId) {
+      const nextEnrollment = await tx.studentBatch.findFirst({
+        where: { studentId: studentUserId, leftAt: null, batchId: { not: batchId } },
+        orderBy: { joinedAt: "asc" },
+        select: { batchId: true },
+      });
+      await tx.studentProfile.update({
+        where: { userId: studentUserId },
+        data: { enrolledBatchId: nextEnrollment?.batchId ?? null },
+      });
+    }
     await tx.user.updateMany({
       where: {
         id: studentUserId,
@@ -603,7 +648,7 @@ export async function searchStudents(
       ...(allowedStudentUserIds ? { userId: { in: allowedStudentUserIds } } : {}),
       user: {
         ...(universityIdFilter ? { universityId: universityIdFilter } : {}),
-        role: "STUDENT",
+        role: { in: ["STUDENT", "MENTOR"] },
         ...(!options.includeNonActive ? { status: "ACTIVE" } : {}),
         OR: [
           { universityIdNumber: { contains: query, mode: "insensitive" } },
@@ -618,6 +663,7 @@ export async function searchStudents(
       user: {
         select: {
           id: true,
+          role: true,
           universityIdNumber: true,
           name: true,
           email: true,

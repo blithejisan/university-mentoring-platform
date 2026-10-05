@@ -172,8 +172,11 @@ model User {
   name               String?
   email              String        @unique
   // Optional university-provided contact email; email is the personal verification address.
-  altEmail           String?       @map("alt_email")
+  altEmail           String?       @unique @map("alt_email")
   passwordHash       String        @map("password_hash")
+  // False only for students pre-created by a batch import, until they claim
+  // their account through registration.
+  isRegistered       Boolean       @default(true) @map("is_registered")
   tokenVersion       Int           @default(0) @map("token_version")
   status             AccountStatus @default(PENDING_VERIFICATION)
   isCR               Boolean       @default(false) @map("is_cr")
@@ -220,14 +223,16 @@ model User {
 model StudentProfile {
   userId       String    @id @map("user_id")
   departmentId String    @map("department_id")
+  enrolledBatchId String? @map("enrolled_batch_id")
   // The Student ID itself lives on User.universityIdNumber (globally
   // unique, the primary search key). No duplicate ID field here.
   phone        String?
   semester     Int?
   archivedAt   DateTime? @map("archived_at")
 
-  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  department Department @relation(fields: [departmentId], references: [id])
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department    Department @relation(fields: [departmentId], references: [id])
+  enrolledBatch Batch?     @relation("EnrolledBatch", fields: [enrolledBatchId], references: [id], onDelete: SetNull)
 
   studentBatches     StudentBatch[]
   attendanceRecords  AttendanceRecord[]
@@ -238,6 +243,7 @@ model StudentProfile {
   coordinationSupportNotes CoordinationSupportNote[]
 
   @@index([departmentId])
+  @@index([enrolledBatchId])
   @@map("student_profiles")
 }
 
@@ -294,6 +300,7 @@ model Batch {
 
   mentorBatches       MentorBatch[]
   studentBatches      StudentBatch[]
+  enrolledStudentProfiles StudentProfile[] @relation("EnrolledBatch")
   attendanceSessions  AttendanceSession[]
   performanceRecords  PerformanceRecord[]
   schedules           Schedule[]
@@ -499,6 +506,7 @@ model BatchNotice {
 
   batch  Batch @relation(fields: [batchId], references: [id], onDelete: Cascade)
   author User  @relation("BatchNoticeAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  notifications Notification[]
 
   @@index([batchId, createdAt])
   @@index([batchId, isPinned])
@@ -615,6 +623,7 @@ model Notification {
   id        String           @id @default(cuid())
   userId    String           @map("user_id")
   noticeId  String?          @map("notice_id")
+  batchNoticeId String?      @map("batch_notice_id")
   sessionId String?          @map("session_id")
   supportNoteId String?      @map("support_note_id")
   type      NotificationType
@@ -627,12 +636,14 @@ model Notification {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   notice Notice? @relation(fields: [noticeId], references: [id], onDelete: Cascade)
+  batchNotice BatchNotice? @relation(fields: [batchNoticeId], references: [id], onDelete: Cascade)
   session AttendanceSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
   supportNote CoordinationSupportNote? @relation(fields: [supportNoteId], references: [id], onDelete: Cascade)
 
   @@unique([userId, sourceKey])
   @@index([userId, readAt, createdAt])
   @@index([noticeId])
+  @@index([batchNoticeId])
   @@index([sessionId])
   @@index([supportNoteId])
   @@map("notifications")

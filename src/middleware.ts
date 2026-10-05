@@ -18,6 +18,10 @@ const ROLE_HOME: Record<string, string> = {
   MODERATOR: "/moderator/dashboard",
   STUDENT: "/student/dashboard",
 };
+const MENTOR_STUDENT_PAGES = [
+  "/student/my-batch",
+  "/student/lab-report-generator",
+];
 
 async function readSession(request: NextRequest) {
   const token = request.cookies.get("access_token")?.value;
@@ -50,6 +54,9 @@ export async function middleware(request: NextRequest) {
     const roleRoot = `/${pathname.split("/")[1]}`;
     const expectedRoot = ROLE_HOME[session.role]?.split("/").slice(0, 2).join("/");
     const isPendingApprovalPage = pathname.startsWith("/pending-approval");
+    const isMentorStudentPage =
+      session.role === "MENTOR" &&
+      MENTOR_STUDENT_PAGES.some((page) => pathname === page || pathname.startsWith(`${page}/`));
 
     // A pending-approval mentor may only see /pending-approval, not the
     // mentor dashboard proper. Enforced again server-side in the mentor
@@ -59,7 +66,7 @@ export async function middleware(request: NextRequest) {
     }
 
     // Prevent a student from typing /admin/... into the address bar, etc.
-    if (!isPendingApprovalPage && expectedRoot && roleRoot !== expectedRoot) {
+    if (!isPendingApprovalPage && !isMentorStudentPage && expectedRoot && roleRoot !== expectedRoot) {
       return NextResponse.redirect(new URL(ROLE_HOME[session.role] ?? "/login", request.url));
     }
   }

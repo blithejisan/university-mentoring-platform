@@ -7,7 +7,7 @@ const MAX_REQUEST_SIZE = 11 * 1024 * 1024;
 
 export async function POST(request: NextRequest) {
   try {
-    const actor = await requireUser(["STUDENT"]);
+    const actor = await requireUser(["STUDENT", "MENTOR"]);
     const contentLength = Number(request.headers.get("content-length"));
     if (Number.isFinite(contentLength) && contentLength > MAX_REQUEST_SIZE) {
       return NextResponse.json({ error: "Attachments must be 10 MB or smaller." }, { status: 413 });

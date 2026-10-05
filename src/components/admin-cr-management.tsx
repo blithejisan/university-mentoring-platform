@@ -9,6 +9,7 @@ type CRStudent = {
   email: string;
   universityIdNumber: string;
   status: string;
+  role: "STUDENT" | "MENTOR";
   crStatus: string;
   isCR?: boolean;
   crBatch?: BatchChoice | null;
@@ -118,7 +119,7 @@ export function AdminCRManagement() {
           <h3 className="font-semibold text-slate-900">{student.name ?? "Unnamed student"}</h3>
           <p className="text-sm text-slate-600">{student.universityIdNumber} · {student.email}</p>
           <p className="mt-1 text-xs text-slate-500">
-            Account: {student.status.replaceAll("_", " ").toLowerCase()} · CR status: {student.crStatus.toLowerCase()}
+            {student.role === "MENTOR" ? "Mentor + student" : "Student"} · Account: {student.status.replaceAll("_", " ").toLowerCase()} · CR status: {student.crStatus.toLowerCase()}
             {alreadyApproved && student.crBatch ? ` · ${student.crBatch.name}` : ""}
           </p>
         </div>

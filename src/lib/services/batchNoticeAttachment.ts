@@ -3,6 +3,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { put } from "@vercel/blob";
 import { AuthError } from "@/lib/auth/guards";
+import { requireApprovedMentor } from "@/lib/auth/guards";
 import type { AccessTokenPayload } from "@/lib/auth/jwt";
 import { prisma } from "@/lib/prisma";
 
@@ -22,9 +23,10 @@ export async function uploadBatchNoticeAttachment(
   actor: AccessTokenPayload,
   file: File
 ) {
-  if (actor.role !== "STUDENT") {
+  if (actor.role !== "STUDENT" && actor.role !== "MENTOR") {
     throw new AuthError("Only an approved CR can upload batch notice attachments.", 403);
   }
+  if (actor.role === "MENTOR") await requireApprovedMentor(actor);
   if (!file.size || file.size > MAX_FILE_SIZE) {
     throw new AuthError("Attachments must be smaller than 10 MB.", 400);
   }
@@ -47,8 +49,10 @@ export async function uploadBatchNoticeAttachment(
       crStatus: true,
       crBatchId: true,
       status: true,
+      role: true,
       studentProfile: {
         select: {
+          enrolledBatchId: true,
           studentBatches: {
             where: { leftAt: null },
             select: { batchId: true },
@@ -59,6 +63,7 @@ export async function uploadBatchNoticeAttachment(
   });
   if (
     !user ||
+    user.role !== actor.role ||
     user.status !== "ACTIVE" ||
     !user.isCR ||
     user.crStatus !== "APPROVED" ||

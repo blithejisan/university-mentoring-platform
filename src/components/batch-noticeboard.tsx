@@ -15,6 +15,7 @@ type BatchNotice = {
   createdAt: string;
   author: { id: string; name: string | null };
   batch: BatchChoice;
+  canDelete?: boolean;
 };
 
 function renderInlineMarkdown(text: string) {
@@ -239,10 +240,10 @@ export function BatchNoticeboard({ isAdmin = false }: { isAdmin?: boolean }) {
     <div className="mx-auto w-full max-w-5xl space-y-6">
       <header className="flex flex-col gap-4 rounded-2xl border border-slate-700 bg-slate-900/75 p-6 text-slate-100 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-sm font-medium text-cyan-300">{isAdmin ? "Admin oversight" : "Student portal"}</p>
+          <p className="text-sm font-medium text-cyan-300">{isAdmin ? "Admin oversight" : "Student workspace"}</p>
           <h1 className="mt-1 text-2xl font-semibold">My Batch noticeboard</h1>
           <p className="mt-2 text-sm text-slate-300">
-            {isAdmin ? "Inspect notices across university batches and remove inappropriate posts." : "Updates shared with students in your batch."}
+            {isAdmin ? "Inspect notices across university batches and remove inappropriate posts." : "Updates shared with students in your enrolled batch."}
           </p>
         </div>
         {canCreateNotice && (
@@ -295,7 +296,7 @@ export function BatchNoticeboard({ isAdmin = false }: { isAdmin?: boolean }) {
                       {notice.author.name ?? "Batch CR"} · {new Date(notice.createdAt).toLocaleString()}
                     </p>
                   </div>
-                  {isAdmin && (
+                  {(isAdmin || notice.canDelete) && (
                     <button
                       type="button"
                       onClick={() => void deleteNotice(notice.id)}
