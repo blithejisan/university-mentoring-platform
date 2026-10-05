@@ -4,11 +4,17 @@ const attachmentSchema = z.object({
   name: z.string().trim().min(1).max(200),
   url: z
     .string()
-    .url()
     .refine((value) => {
-      const protocol = new URL(value).protocol;
-      return protocol === "http:" || protocol === "https:";
-    }, "Attachment URL must use HTTP or HTTPS."),
+      if (value.startsWith("/uploads/batch-notices/")) {
+        return !value.includes("\\") && !value.startsWith("//");
+      }
+      try {
+        const protocol = new URL(value).protocol;
+        return protocol === "http:" || protocol === "https:";
+      } catch {
+        return false;
+      }
+    }, "Attachment URL must be HTTP, HTTPS, or a local uploaded-file URL."),
   type: z.string().trim().min(1).max(100),
   size: z.number().int().min(0).max(1_000_000_000),
 });

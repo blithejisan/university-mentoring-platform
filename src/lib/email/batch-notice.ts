@@ -62,7 +62,7 @@ export async function sendBatchNoticeEmails(noticeId: string) {
     ? `<ul>${attachments
         .map(
           ({ name, url }) =>
-            `<li><a href="${escapeHtml(url)}">${escapeHtml(name)}</a></li>`
+            `<li><a href="${escapeHtml(getAppUrl(url))}">${escapeHtml(name)}</a></li>`
         )
         .join("")}</ul>`
     : "";
@@ -79,7 +79,7 @@ export async function sendBatchNoticeEmails(noticeId: string) {
     "",
     notice.content,
     ...(attachments.length
-      ? ["", "Attachments:", ...attachments.map(({ name, url }) => `${name}: ${url}`)]
+      ? ["", "Attachments:", ...attachments.map(({ name, url }) => `${name}: ${getAppUrl(url)}`)]
       : []),
     "",
     `Open the batch noticeboard: ${portalUrl}`,

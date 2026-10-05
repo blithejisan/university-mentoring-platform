@@ -76,10 +76,9 @@ export function BatchNoticeboard({ isAdmin = false }: { isAdmin?: boolean }) {
   const [isPinned, setIsPinned] = useState(false);
   const [sendEmailNotification, setSendEmailNotification] = useState(false);
   const [attachments, setAttachments] = useState<NoticeAttachment[]>([]);
-  const [attachmentName, setAttachmentName] = useState("");
-  const [attachmentUrl, setAttachmentUrl] = useState("");
-  const [attachmentType, setAttachmentType] = useState("Link");
+  const [externalUrl, setExternalUrl] = useState("");
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -112,27 +111,70 @@ export function BatchNoticeboard({ isAdmin = false }: { isAdmin?: boolean }) {
     };
   }, [isAdmin, selectedBatchId]);
 
-  function addAttachment() {
+  function addExternalLink() {
     setAttachmentError(null);
-    if (!attachmentName.trim()) {
-      setAttachmentError("Enter a name for the attachment.");
+    if (attachments.length >= 10) {
+      setAttachmentError("A notice can have up to 10 attachments or links.");
       return;
     }
+
+    let parsedUrl: URL;
     try {
-      const parsedUrl = new URL(attachmentUrl);
-      if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
-        throw new Error("Only HTTP and HTTPS links are supported.");
-      }
+      parsedUrl = new URL(externalUrl);
     } catch {
       setAttachmentError("Enter a valid HTTP or HTTPS attachment URL.");
       return;
     }
+    if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
+      setAttachmentError("Only HTTP and HTTPS links are supported.");
+      return;
+    }
+    const filename = parsedUrl.pathname.split("/").filter(Boolean).pop();
     setAttachments((current) => [
       ...current,
-      { name: attachmentName.trim(), url: attachmentUrl, type: attachmentType, size: 0 },
+      {
+        name: filename || parsedUrl.hostname,
+        url: parsedUrl.toString(),
+        type: "text/uri-list",
+        size: 0,
+      },
     ]);
-    setAttachmentName("");
-    setAttachmentUrl("");
+    setExternalUrl("");
+  }
+
+  async function uploadFiles(files: FileList | File[]) {
+    setAttachmentError(null);
+    const selectedFiles = Array.from(files);
+    if (!selectedFiles.length) return;
+    if (attachments.length + selectedFiles.length > 10) {
+      setAttachmentError("A notice can have up to 10 attachments or links.");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const uploaded: NoticeAttachment[] = [];
+      for (const file of selectedFiles) {
+        const formData = new FormData();
+        formData.set("file", file);
+        const response = await fetch("/api/batch-notices/upload", {
+          method: "POST",
+          body: formData,
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error ?? `Could not upload ${file.name}.`);
+        }
+        uploaded.push(data.attachment as NoticeAttachment);
+      }
+      setAttachments((current) => [...current, ...uploaded]);
+    } catch (uploadError) {
+      setAttachmentError(
+        uploadError instanceof Error ? uploadError.message : "Could not upload attachment."
+      );
+    } finally {
+      setUploading(false);
+    }
   }
 
   async function createNotice(event: FormEvent<HTMLFormElement>) {
@@ -302,37 +344,93 @@ export function BatchNoticeboard({ isAdmin = false }: { isAdmin?: boolean }) {
               Notice content (Markdown supported)
               <textarea value={content} onChange={(event) => setContent(event.target.value)} required maxLength={20000} rows={8} placeholder="Write the announcement. Use **bold**, *italic*, links, and headings." className="w-full rounded-md border p-3 text-sm" />
             </label>
-            <div className="space-y-3 rounded-lg border border-slate-700 p-3">
-              <p className="text-sm font-semibold">Attachments or links</p>
-              {attachments.map((attachment, index) => (
-                <div key={`${attachment.url}-${index}`} className="flex items-center justify-between gap-2 text-sm">
-                  <a href={attachment.url} target="_blank" rel="noopener noreferrer" className="truncate text-cyan-300 underline">{attachment.name}</a>
-                  <button type="button" onClick={() => setAttachments((current) => current.filter((_, itemIndex) => itemIndex !== index))} className="shrink-0 text-rose-300">Remove</button>
-                </div>
-              ))}
-              <div className="grid gap-2 sm:grid-cols-2">
-                <input value={attachmentName} onChange={(event) => setAttachmentName(event.target.value)} placeholder="Attachment name" aria-label="Attachment name" className="h-10 rounded-md border px-3 text-sm" />
-                <select value={attachmentType} onChange={(event) => setAttachmentType(event.target.value)} aria-label="Attachment type" className="h-10 rounded-md border px-3 text-sm">
-                  <option>Link</option><option>Drive</option><option>PDF</option><option>Image</option>
-                </select>
+            <section className="space-y-3 rounded-lg border border-slate-700 p-4" aria-labelledby="notice-attachments-heading">
+              <div>
+                <h3 id="notice-attachments-heading" className="text-sm font-semibold text-slate-100">Attachments</h3>
+                <p className="mt-1 text-xs text-slate-400">Upload PDF, DOCX, PNG, or JPG files (up to 10 MB each), or add an external link.</p>
               </div>
+              <label
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  void uploadFiles(event.dataTransfer.files);
+                }}
+                className="flex min-h-32 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-600 bg-slate-800/50 px-4 py-5 text-center transition hover:border-cyan-400 hover:bg-slate-800 focus-within:border-cyan-400 focus-within:ring-2 focus-within:ring-cyan-400/40"
+              >
+                <span className="text-sm font-medium text-slate-100">{uploading ? "Uploading file…" : "Drop files here or choose from your device"}</span>
+                <span className="text-xs text-slate-400">PDF, DOCX, PNG, JPG · Maximum 10 attachments</span>
+                <input
+                  type="file"
+                  accept=".pdf,.docx,.png,.jpg,.jpeg,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/png,image/jpeg"
+                  multiple
+                  disabled={uploading || attachments.length >= 10}
+                  onChange={(event) => {
+                    void uploadFiles(event.currentTarget.files ?? []);
+                    event.currentTarget.value = "";
+                  }}
+                  className="sr-only"
+                />
+              </label>
+              {attachments.length > 0 && (
+                <ul className="space-y-2">
+                  {attachments.map((attachment, index) => (
+                    <li key={`${attachment.url}-${index}`} className="flex min-h-10 items-center justify-between gap-3 rounded-md bg-slate-800 px-3 py-2 text-sm">
+                      <a href={attachment.url} target="_blank" rel="noopener noreferrer" className="min-w-0 truncate text-cyan-300 underline">
+                        {attachment.name}
+                      </a>
+                      <span className="shrink-0 text-xs text-slate-400">
+                        {attachment.type === "text/uri-list" ? "Link" : `${(attachment.size / (1024 * 1024)).toFixed(1)} MB`}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setAttachments((current) => current.filter((_, itemIndex) => itemIndex !== index))}
+                        aria-label={`Remove ${attachment.name}`}
+                        className="shrink-0 rounded px-2 py-1 text-slate-300 hover:bg-rose-900/60 hover:text-rose-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300"
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
               <div className="flex flex-col gap-2 sm:flex-row">
-                <input value={attachmentUrl} onChange={(event) => setAttachmentUrl(event.target.value)} placeholder="https://…" aria-label="Attachment URL" className="h-10 min-w-0 flex-1 rounded-md border px-3 text-sm" />
-                <button type="button" onClick={addAttachment} className="min-h-10 rounded-md border border-slate-500 px-3 text-sm font-medium hover:bg-slate-800">Add link</button>
+                <label htmlFor="notice-external-link" className="sr-only">External link URL</label>
+                <input
+                  id="notice-external-link"
+                  type="url"
+                  value={externalUrl}
+                  onChange={(event) => setExternalUrl(event.target.value)}
+                  placeholder="https://drive.google.com/…"
+                  className="h-10 min-w-0 flex-1 rounded-md border border-slate-600 bg-slate-800 px-3 text-sm text-white placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+                />
+                <button
+                  type="button"
+                  onClick={addExternalLink}
+                  disabled={!externalUrl.trim() || attachments.length >= 10}
+                  className="min-h-10 rounded-md border border-slate-500 px-3 text-sm font-medium text-slate-100 transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Add external link
+                </button>
               </div>
               {attachmentError && <p role="alert" className="text-xs text-rose-300">{attachmentError}</p>}
-            </div>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={isPinned} onChange={(event) => setIsPinned(event.target.checked)} className="size-4 accent-cyan-400" />
-              Pin this notice to the top
+            </section>
+            <label className="group flex cursor-pointer items-start gap-3 rounded-lg border border-slate-700 p-3 text-sm transition hover:border-cyan-500/70 hover:bg-slate-800/70 focus-within:ring-2 focus-within:ring-cyan-400/50">
+              <input type="checkbox" checked={isPinned} onChange={(event) => setIsPinned(event.target.checked)} className="mt-0.5 size-4 accent-cyan-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300" />
+              <span>
+                <span className="font-medium text-slate-100">Pin this notice to the top</span>
+                <span className="mt-1 block text-xs text-slate-400">Pinned notices appear before other notices in the batch feed.</span>
+              </span>
             </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={sendEmailNotification} onChange={(event) => setSendEmailNotification(event.target.checked)} className="size-4 accent-cyan-400" />
-              Email active students in this batch
+            <label className="group flex cursor-pointer items-start gap-3 rounded-lg border border-slate-700 p-3 text-sm transition hover:border-cyan-500/70 hover:bg-slate-800/70 focus-within:ring-2 focus-within:ring-cyan-400/50">
+              <input type="checkbox" checked={sendEmailNotification} onChange={(event) => setSendEmailNotification(event.target.checked)} className="mt-0.5 size-4 accent-cyan-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300" />
+              <span>
+                <span className="font-medium text-slate-100">Send email notification to all active students in this batch</span>
+                <span className="mt-1 block text-xs text-slate-400">When checked, this notice will be emailed to every active student currently assigned to this batch.</span>
+              </span>
             </label>
             <div className="flex justify-end gap-2 border-t border-slate-700 pt-4">
               <button type="button" onClick={() => setShowComposer(false)} className="min-h-10 rounded-md border border-slate-600 px-4 text-sm">Cancel</button>
-              <button type="submit" disabled={saving} className="min-h-10 rounded-md bg-cyan-300 px-4 text-sm font-semibold text-slate-950 disabled:opacity-50">
+              <button type="submit" disabled={saving || uploading} className="min-h-10 rounded-md bg-cyan-300 px-4 text-sm font-semibold text-slate-950 disabled:opacity-50">
                 {saving ? "Publishing…" : "Publish notice"}
               </button>
             </div>

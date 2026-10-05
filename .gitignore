@@ -43,6 +43,7 @@ next-env.d.ts
 
 # prisma
 /prisma/*.db
+/public/uploads/
 
 .env
 .env.local

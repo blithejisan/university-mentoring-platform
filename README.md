@@ -177,11 +177,14 @@ APP_URL="http://localhost:3000"
 
 EMAIL_PROVIDER="console"
 EMAIL_FROM_ADDRESS=""
+# Optional: use Vercel Blob for persistent batch notice file attachments:
+BLOB_READ_WRITE_TOKEN=""
 # For scheduled notice publishing and reminder dispatch:
 COMMUNICATION_CRON_SECRET="replace-with-a-unique-random-secret"
 ```
 
 Do not commit `.env` or put server secrets in `NEXT_PUBLIC_*` variables.
+In development, batch notice uploads can use the ignored `public/uploads/` directory when no Blob token is configured. Production uploads require `BLOB_READ_WRITE_TOKEN`; configure `APP_URL` or `NEXT_PUBLIC_APP_URL` to the deployed origin so uploaded-file links in email notifications resolve correctly.
 
 ### 3. Apply migrations
 
@@ -219,7 +222,9 @@ Open [http://localhost:3000](http://localhost:3000). Student and mentor registra
 | `DATABASE_URL` | Yes | PostgreSQL connection string used by Prisma's PostgreSQL adapter. |
 | `JWT_ACCESS_SECRET` | Yes | Secret used to sign access tokens. |
 | `JWT_REFRESH_SECRET` | Yes | Separate secret used to sign refresh tokens. |
-| `APP_URL` | Recommended | Public application origin used to construct verification, reset, and notification links; defaults to localhost for local use. |
+| `APP_URL` | Recommended | Public application origin used to construct verification, reset, and notification links when `NEXT_PUBLIC_APP_URL` and Vercel's `VERCEL_URL` are not set. |
+| `NEXT_PUBLIC_APP_URL` | Optional | Public application origin override used to construct links in notices and email notifications. |
+| `BLOB_READ_WRITE_TOKEN` | For production uploads | Vercel Blob read/write token for durable batch notice attachments; development may use local disk without it. |
 | `EMAIL_PROVIDER` | For email | `console`, `smtp`, or `resend`, depending on the intended delivery setup. |
 | `EMAIL_FROM_ADDRESS` | For email delivery | Sender address configured with the chosen provider. |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` | For SMTP | SMTP connection and authentication settings. |
@@ -229,7 +234,7 @@ Open [http://localhost:3000](http://localhost:3000). Student and mentor registra
 | `SEED_MODERATOR_ID`, `SEED_MODERATOR_EMAIL`, `SEED_MODERATOR_PASSWORD` | Optional | Complete set to seed a moderator account. |
 | `SEED_MENTOR_ID`, `SEED_MENTOR_EMAIL`, `SEED_MENTOR_PASSWORD`, `SEED_MENTOR_NAME` | Optional | Complete set to seed a mentor account. |
 
-**`DIRECT_URL` is not currently used by this repository.** Prisma configuration reads `DATABASE_URL` and the application creates its `pg` pool from the same variable. Do not assume that setting `DIRECT_URL` changes migration or runtime behavior.
+Prisma CLI migrations use `DIRECT_URL` when configured and otherwise fall back to `DATABASE_URL`. The application runtime creates its `pg` pool from `DATABASE_URL`.
 
 ### Email and scheduled communication
 
