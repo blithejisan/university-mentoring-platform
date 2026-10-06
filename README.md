@@ -179,12 +179,14 @@ EMAIL_PROVIDER="console"
 EMAIL_FROM_ADDRESS=""
 # Optional: use Vercel Blob for persistent batch notice file attachments:
 BLOB_READ_WRITE_TOKEN=""
+# Optional: set to "local" to force local disk, or "blob" to require Vercel Blob:
+STORAGE_DRIVER=""
 # For scheduled notice publishing and reminder dispatch:
 COMMUNICATION_CRON_SECRET="replace-with-a-unique-random-secret"
 ```
 
 Do not commit `.env` or put server secrets in `NEXT_PUBLIC_*` variables.
-In development, batch notice uploads can use the ignored `public/uploads/` directory when no Blob token is configured. Production uploads require `BLOB_READ_WRITE_TOKEN`; configure `APP_URL` or `NEXT_PUBLIC_APP_URL` to the deployed origin so uploaded-file links in email notifications resolve correctly.
+Batch notice attachments store a plain URL/path in `attachment.url`, independent of the storage provider. With `STORAGE_DRIVER` unset, uploads use Vercel Blob when `BLOB_READ_WRITE_TOKEN` is configured; otherwise, development automatically stores them under the ignored `public/uploads/notices/` directory. Set `STORAGE_DRIVER=local` to force local storage or `STORAGE_DRIVER=blob` to require Blob credentials. Local storage can also be enabled in production with `STORAGE_DRIVER=local`, but the deployment must provide persistent disk and serve `public/uploads/notices/`. Configure `APP_URL` or `NEXT_PUBLIC_APP_URL` to the deployed origin so uploaded-file links in email notifications resolve correctly.
 
 ### 3. Apply migrations
 
@@ -225,6 +227,7 @@ Open [http://localhost:3000](http://localhost:3000). Student and mentor registra
 | `APP_URL` | Recommended | Public application origin used to construct verification, reset, and notification links when `NEXT_PUBLIC_APP_URL` and Vercel's `VERCEL_URL` are not set. |
 | `NEXT_PUBLIC_APP_URL` | Optional | Public application origin override used to construct links in notices and email notifications. |
 | `BLOB_READ_WRITE_TOKEN` | For production uploads | Vercel Blob read/write token for durable batch notice attachments; development may use local disk without it. |
+| `STORAGE_DRIVER` | Optional | `local` forces disk storage; `blob` requires `BLOB_READ_WRITE_TOKEN`. If unset, a configured Blob token is preferred and development otherwise uses local disk. |
 | `EMAIL_PROVIDER` | For email | `console`, `smtp`, or `resend`, depending on the intended delivery setup. |
 | `EMAIL_FROM_ADDRESS` | For email delivery | Formatted sender configured with the chosen provider, including the friendly display name. |
 | `SMTP_HOST`, `SMTP_PORT`, `EMAIL_USER`, `EMAIL_PASS` | For SMTP | SMTP connection and authentication settings. `SMTP_USER` and `SMTP_PASSWORD` remain supported as legacy aliases. |

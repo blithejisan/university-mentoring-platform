@@ -5,7 +5,10 @@ const attachmentSchema = z.object({
   url: z
     .string()
     .refine((value) => {
-      if (value.startsWith("/uploads/batch-notices/")) {
+      if (
+        value.startsWith("/uploads/notices/") ||
+        value.startsWith("/uploads/batch-notices/")
+      ) {
         return !value.includes("\\") && !value.startsWith("//");
       }
       try {

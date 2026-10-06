@@ -499,6 +499,7 @@ model BatchNotice {
   batchId               String   @map("batch_id")
   authorId              String   @map("author_id")
   isPinned              Boolean  @default(false) @map("is_pinned")
+  /// Each attachment's url is a provider URL or app-relative path.
   attachments           Json?
   sendEmailNotification Boolean  @default(false) @map("send_email_notification")
   createdAt             DateTime @default(now()) @map("created_at")

@@ -26,6 +26,81 @@ export class BatchNoticeAttachmentStorageError extends Error {
   }
 }
 
+interface BatchNoticeAttachmentStorageDriver {
+  upload(storedName: string, bytes: Buffer, contentType: string): Promise<string>;
+}
+
+function createLocalStorageDriver(): BatchNoticeAttachmentStorageDriver {
+  return {
+    async upload(storedName, bytes) {
+      const uploadDirectory = path.join(
+        process.cwd(),
+        "public",
+        "uploads",
+        "notices"
+      );
+      try {
+        await mkdir(uploadDirectory, { recursive: true });
+        await writeFile(path.join(uploadDirectory, storedName), bytes, {
+          flag: "wx",
+        });
+      } catch (error) {
+        throw new BatchNoticeAttachmentStorageError(
+          "The uploaded file could not be saved to local storage.",
+          { cause: error }
+        );
+      }
+      return `/uploads/notices/${storedName}`;
+    },
+  };
+}
+
+function createBlobStorageDriver(
+  token: string
+): BatchNoticeAttachmentStorageDriver {
+  return {
+    async upload(storedName, bytes, contentType) {
+      try {
+        const blob = await put(`notices/${storedName}`, bytes, {
+          access: "public",
+          addRandomSuffix: false,
+          contentType,
+          token,
+        });
+        return blob.url;
+      } catch (error) {
+        throw new BatchNoticeAttachmentStorageError(
+          "File storage could not save the upload. Check BLOB_READ_WRITE_TOKEN and storage availability.",
+          { cause: error }
+        );
+      }
+    },
+  };
+}
+
+function getStorageDriver(): BatchNoticeAttachmentStorageDriver {
+  const configuredDriver = process.env.STORAGE_DRIVER?.trim().toLowerCase();
+  if (configuredDriver === "local") return createLocalStorageDriver();
+  if (configuredDriver && configuredDriver !== "blob") {
+    throw new BatchNoticeAttachmentStorageError(
+      "STORAGE_DRIVER must be set to 'local' or 'blob'."
+    );
+  }
+
+  const blobToken = process.env.BLOB_READ_WRITE_TOKEN?.trim();
+  if (blobToken) return createBlobStorageDriver(blobToken);
+  if (configuredDriver === "blob") {
+    throw new BatchNoticeAttachmentStorageError(
+      "BLOB_READ_WRITE_TOKEN is required when STORAGE_DRIVER is set to 'blob'."
+    );
+  }
+  if (process.env.NODE_ENV === "development") return createLocalStorageDriver();
+
+  throw new BatchNoticeAttachmentStorageError(
+    "File uploads are not configured. Set BLOB_READ_WRITE_TOKEN or STORAGE_DRIVER=local."
+  );
+}
+
 export async function uploadBatchNoticeAttachment(
   actor: AccessTokenPayload,
   file: File
@@ -83,45 +158,7 @@ export async function uploadBatchNoticeAttachment(
   }
 
   const storedName = `${randomUUID()}${extension}`;
-  let url: string;
-  const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
-  if (blobToken) {
-    try {
-      const blob = await put(`batch-notices/${storedName}`, bytes, {
-        access: "public",
-        addRandomSuffix: false,
-        contentType: fileType.type,
-        token: blobToken,
-      });
-      url = blob.url;
-    } catch (error) {
-      throw new BatchNoticeAttachmentStorageError(
-        "File storage could not save the upload. Check BLOB_READ_WRITE_TOKEN and storage availability.",
-        { cause: error }
-      );
-    }
-  } else if (process.env.NODE_ENV !== "production") {
-    const uploadDirectory = path.join(
-      process.cwd(),
-      "public",
-      "uploads",
-      "batch-notices"
-    );
-    try {
-      await mkdir(uploadDirectory, { recursive: true });
-      await writeFile(path.join(uploadDirectory, storedName), bytes, { flag: "wx" });
-    } catch (error) {
-      throw new BatchNoticeAttachmentStorageError(
-        "The uploaded file could not be saved to local storage.",
-        { cause: error }
-      );
-    }
-    url = `/uploads/batch-notices/${storedName}`;
-  } else {
-    throw new BatchNoticeAttachmentStorageError(
-      "File uploads are not configured. Set BLOB_READ_WRITE_TOKEN for production storage."
-    );
-  }
+  const url = await getStorageDriver().upload(storedName, bytes, fileType.type);
 
   return {
     name: file.name,

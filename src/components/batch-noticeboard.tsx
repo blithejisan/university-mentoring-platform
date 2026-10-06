@@ -37,7 +37,8 @@ function isNoticeAttachment(value: unknown): value is NoticeAttachment {
   }
 
   if (
-    value.url.startsWith("/uploads/batch-notices/") &&
+    (value.url.startsWith("/uploads/notices/") ||
+      value.url.startsWith("/uploads/batch-notices/")) &&
     !value.url.startsWith("//") &&
     !value.url.includes("\\")
   ) {
