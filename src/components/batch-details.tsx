@@ -109,7 +109,9 @@ export function BatchDetailsView({ batchId, userRole }: Props) {
   // Search/Assign Student State
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchStudentResult[]>([]);
+  const [showSearchResults, setShowSearchResults] = useState(false);
   const [searching, setSearching] = useState(false);
+  const studentSearchRef = useRef<HTMLDivElement>(null);
   const searchRequestId = useRef(0);
   const [rosterSearch, setRosterSearch] = useState("");
   const [studentIdInput, setStudentIdInput] = useState("");
@@ -460,11 +462,23 @@ export function BatchDetailsView({ batchId, userRole }: Props) {
     };
   }, [canManage, batch?.department.id]);
 
+  useEffect(() => {
+    const handleOutsidePointerDown = (event: PointerEvent) => {
+      if (event.target instanceof Node && !studentSearchRef.current?.contains(event.target)) {
+        setShowSearchResults(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", handleOutsidePointerDown);
+    return () => document.removeEventListener("pointerdown", handleOutsidePointerDown);
+  }, []);
+
   function clearStudentSearch() {
     searchRequestId.current += 1;
     setSearchQuery("");
     setSearchResults([]);
     setSearching(false);
+    setShowSearchResults(false);
   }
 
   async function handleSearchStudent(e: React.FormEvent) {
@@ -475,6 +489,7 @@ export function BatchDetailsView({ batchId, userRole }: Props) {
       return;
     }
     const requestId = ++searchRequestId.current;
+    setShowSearchResults(true);
     setSearching(true);
     try {
       const res = await fetch(`/api/students/search?q=${encodeURIComponent(query)}`);
@@ -844,11 +859,20 @@ export function BatchDetailsView({ batchId, userRole }: Props) {
             )}
 
             {canManage && (
-              <div className="space-y-2">
+              <div
+                ref={studentSearchRef}
+                className="space-y-2"
+                onBlur={(event) => {
+                  if (!event.currentTarget.contains(event.relatedTarget)) {
+                    setShowSearchResults(false);
+                  }
+                }}
+              >
                 <form onSubmit={handleSearchStudent} className="flex gap-2">
                   <Input
                     placeholder="Search Student ID or Email..."
                     value={searchQuery}
+                    onFocus={() => setShowSearchResults(true)}
                     onChange={(e) => {
                       const value = e.target.value;
                       setSearchQuery(value);
@@ -856,6 +880,7 @@ export function BatchDetailsView({ batchId, userRole }: Props) {
                       setSearching(false);
                       if (!value.trim()) {
                         setSearchResults([]);
+                        setShowSearchResults(false);
                       }
                     }}
                     className="h-9"
@@ -865,7 +890,7 @@ export function BatchDetailsView({ batchId, userRole }: Props) {
                   </Button>
                 </form>
 
-                {searchResults.length > 0 && (
+                {showSearchResults && searchResults.length > 0 && (
                   <div className="max-h-40 divide-y divide-border overflow-y-auto rounded-md border border-border bg-card text-sm text-foreground">
                     {searchResults.map((s) => {
                       const isAssigned = batch.studentBatches.some((sb) => sb.studentId === s.userId && !sb.leftAt);

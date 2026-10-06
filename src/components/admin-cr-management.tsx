@@ -20,6 +20,8 @@ type CRStudent = {
 export function AdminCRManagement() {
   const [pending, setPending] = useState<CRStudent[]>([]);
   const [results, setResults] = useState<CRStudent[]>([]);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const studentSearchRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
   const searchRequestId = useRef(0);
   const [selectedBatch, setSelectedBatch] = useState<Record<string, string>>({});
@@ -27,6 +29,17 @@ export function AdminCRManagement() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleOutsidePointerDown = (event: PointerEvent) => {
+      if (event.target instanceof Node && !studentSearchRef.current?.contains(event.target)) {
+        setShowSearchResults(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", handleOutsidePointerDown);
+    return () => document.removeEventListener("pointerdown", handleOutsidePointerDown);
+  }, []);
 
   async function load(search = "", requestId?: number) {
     setLoading(true);
@@ -55,6 +68,7 @@ export function AdminCRManagement() {
   async function search(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const requestId = ++searchRequestId.current;
+    setShowSearchResults(true);
     await load(query, requestId);
   }
 
@@ -179,26 +193,44 @@ export function AdminCRManagement() {
           <h2 className="text-lg font-semibold text-slate-900">Find an existing student</h2>
           <p className="text-sm text-slate-600">Search by student ID or email to approve a previously imported student without re-registration.</p>
         </div>
-        <form onSubmit={search} className="flex flex-col gap-2 sm:flex-row">
-          <input
-            value={query}
-            onChange={(event) => {
-              setQuery(event.target.value);
-              searchRequestId.current += 1;
-              if (!event.target.value.trim()) setResults([]);
-            }}
-            placeholder="Student ID or email"
-            aria-label="Search students by ID or email"
-            className="h-10 min-w-0 flex-1 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900"
-          />
-          <button type="submit" disabled={loading} className="min-h-10 rounded-md bg-slate-800 px-4 text-sm font-semibold text-white disabled:opacity-50">
-            Search
-          </button>
-        </form>
-        {results.length > 0 && <div className="space-y-3">{results.map((student) => studentCard(student, false))}</div>}
-        {!loading && query.trim() && results.length === 0 && (
-          <p className="text-sm text-slate-500">No matching student accounts found.</p>
-        )}
+        <div
+          ref={studentSearchRef}
+          onBlur={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget)) {
+              setShowSearchResults(false);
+            }
+          }}
+        >
+          <form onSubmit={search} className="flex flex-col gap-2 sm:flex-row">
+            <input
+              value={query}
+              onFocus={() => {
+                if (query.trim()) setShowSearchResults(true);
+              }}
+              onChange={(event) => {
+                const value = event.target.value;
+                setQuery(value);
+                searchRequestId.current += 1;
+                if (!value.trim()) {
+                  setResults([]);
+                  setShowSearchResults(false);
+                }
+              }}
+              placeholder="Student ID or email"
+              aria-label="Search students by ID or email"
+              className="h-10 min-w-0 flex-1 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900"
+            />
+            <button type="submit" disabled={loading} className="min-h-10 rounded-md bg-slate-800 px-4 text-sm font-semibold text-white disabled:opacity-50">
+              Search
+            </button>
+          </form>
+          {showSearchResults && results.length > 0 && (
+            <div className="mt-3 space-y-3">{results.map((student) => studentCard(student, false))}</div>
+          )}
+          {showSearchResults && !loading && query.trim() && results.length === 0 && (
+            <p className="mt-3 text-sm text-slate-500">No matching student accounts found.</p>
+          )}
+        </div>
       </section>
     </div>
   );
