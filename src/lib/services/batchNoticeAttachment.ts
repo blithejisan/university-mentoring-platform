@@ -19,6 +19,13 @@ const ALLOWED_FILES = {
   ".jpeg": { type: "image/jpeg", signature: [0xff, 0xd8, 0xff] },
 } as const;
 
+export class BatchNoticeAttachmentStorageError extends Error {
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
+    this.name = "BatchNoticeAttachmentStorageError";
+  }
+}
+
 export async function uploadBatchNoticeAttachment(
   actor: AccessTokenPayload,
   file: File
@@ -28,7 +35,7 @@ export async function uploadBatchNoticeAttachment(
   }
   if (actor.role === "MENTOR") await requireApprovedMentor(actor);
   if (!file.size || file.size > MAX_FILE_SIZE) {
-    throw new AuthError("Attachments must be smaller than 10 MB.", 400);
+    throw new AuthError("Attachments must be 10 MB or smaller.", 400);
   }
 
   const extension = path.extname(file.name).toLowerCase() as keyof typeof ALLOWED_FILES;
@@ -79,13 +86,20 @@ export async function uploadBatchNoticeAttachment(
   let url: string;
   const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
   if (blobToken) {
-    const blob = await put(`batch-notices/${storedName}`, bytes, {
-      access: "public",
-      addRandomSuffix: false,
-      contentType: fileType.type,
-      token: blobToken,
-    });
-    url = blob.url;
+    try {
+      const blob = await put(`batch-notices/${storedName}`, bytes, {
+        access: "public",
+        addRandomSuffix: false,
+        contentType: fileType.type,
+        token: blobToken,
+      });
+      url = blob.url;
+    } catch (error) {
+      throw new BatchNoticeAttachmentStorageError(
+        "File storage could not save the upload. Check BLOB_READ_WRITE_TOKEN and storage availability.",
+        { cause: error }
+      );
+    }
   } else if (process.env.NODE_ENV !== "production") {
     const uploadDirectory = path.join(
       process.cwd(),
@@ -93,11 +107,20 @@ export async function uploadBatchNoticeAttachment(
       "uploads",
       "batch-notices"
     );
-    await mkdir(uploadDirectory, { recursive: true });
-    await writeFile(path.join(uploadDirectory, storedName), bytes, { flag: "wx" });
+    try {
+      await mkdir(uploadDirectory, { recursive: true });
+      await writeFile(path.join(uploadDirectory, storedName), bytes, { flag: "wx" });
+    } catch (error) {
+      throw new BatchNoticeAttachmentStorageError(
+        "The uploaded file could not be saved to local storage.",
+        { cause: error }
+      );
+    }
     url = `/uploads/batch-notices/${storedName}`;
   } else {
-    throw new Error("BLOB_READ_WRITE_TOKEN is required for production file uploads.");
+    throw new BatchNoticeAttachmentStorageError(
+      "File uploads are not configured. Set BLOB_READ_WRITE_TOKEN for production storage."
+    );
   }
 
   return {

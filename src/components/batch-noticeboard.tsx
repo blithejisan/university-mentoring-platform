@@ -19,6 +19,39 @@ type BatchNotice = {
   canDelete?: boolean;
 };
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isNoticeAttachment(value: unknown): value is NoticeAttachment {
+  if (
+    !isRecord(value) ||
+    typeof value.name !== "string" ||
+    typeof value.url !== "string" ||
+    typeof value.type !== "string" ||
+    typeof value.size !== "number" ||
+    !Number.isFinite(value.size) ||
+    value.size < 0
+  ) {
+    return false;
+  }
+
+  if (
+    value.url.startsWith("/uploads/batch-notices/") &&
+    !value.url.startsWith("//") &&
+    !value.url.includes("\\")
+  ) {
+    return true;
+  }
+
+  try {
+    const protocol = new URL(value.url).protocol;
+    return protocol === "http:" || protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 function renderInlineMarkdown(text: string) {
   const expressions = /(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`|\[[^\]]+\]\(https?:\/\/[^ )]+\))/g;
   return text.split(expressions).map((part, index) => {
@@ -163,11 +196,23 @@ export function BatchNoticeboard({ isAdmin = false }: { isAdmin?: boolean }) {
           method: "POST",
           body: formData,
         });
-        const data = await response.json();
-        if (!response.ok) {
-          throw new Error(data.error ?? `Could not upload ${file.name}.`);
+        const data: unknown = await response.json().catch(() => null);
+        if (!isRecord(data)) {
+          throw new Error(
+            `Upload failed for ${file.name} (HTTP ${response.status}): the server returned an invalid response.`
+          );
         }
-        uploaded.push(data.attachment as NoticeAttachment);
+        if (!response.ok) {
+          throw new Error(
+            typeof data.error === "string"
+              ? data.error
+              : `Could not upload ${file.name} (HTTP ${response.status}).`
+          );
+        }
+        if (!isNoticeAttachment(data.attachment)) {
+          throw new Error(`Upload completed for ${file.name}, but the server returned invalid attachment metadata.`);
+        }
+        uploaded.push(data.attachment);
       }
       setAttachments((current) => [...current, ...uploaded]);
     } catch (uploadError) {

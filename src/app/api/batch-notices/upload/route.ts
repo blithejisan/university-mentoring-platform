@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, authErrorResponse } from "@/lib/auth/guards";
-import { uploadBatchNoticeAttachment } from "@/lib/services/batchNoticeAttachment";
+import {
+  BatchNoticeAttachmentStorageError,
+  uploadBatchNoticeAttachment,
+} from "@/lib/services/batchNoticeAttachment";
 
 export const runtime = "nodejs";
 const MAX_REQUEST_SIZE = 11 * 1024 * 1024;
@@ -30,6 +33,10 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     const authResponse = authErrorResponse(error);
     if (authResponse) return authResponse;
+    if (error instanceof BatchNoticeAttachmentStorageError) {
+      console.error("[batch-notice-upload] Attachment storage failed.", error);
+      return NextResponse.json({ error: error.message }, { status: 503 });
+    }
     console.error("[batch-notice-upload] Attachment upload failed.", error);
     return NextResponse.json({ error: "Could not upload attachment." }, { status: 500 });
   }
