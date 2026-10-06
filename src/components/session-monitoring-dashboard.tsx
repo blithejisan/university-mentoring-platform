@@ -1,4 +1,5 @@
 "use client";
+import { ThemedSelect } from "@/components/ui/themed-select";
 
 import { useEffect, useState } from "react";
 import { RotateCw } from "lucide-react";
@@ -228,7 +229,7 @@ export function SessionMonitoringDashboard({ role }: { role: DashboardRole }) {
         {role === "ADMIN" && (
           <div>
             <Label htmlFor="monitoring-department">Department</Label>
-            <select
+            <ThemedSelect
               id="monitoring-department"
               value={departmentId}
               onChange={(event) => {
@@ -243,26 +244,26 @@ export function SessionMonitoringDashboard({ role }: { role: DashboardRole }) {
               {departments.map((department) => (
                 <option key={department.id} value={department.id}>{department.name}</option>
               ))}
-            </select>
+            </ThemedSelect>
           </div>
         )}
         <div>
           <Label htmlFor="monitoring-batch">Batch</Label>
-          <select id="monitoring-batch" value={batchId} onChange={(event) => setBatchId(event.target.value)} className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+          <ThemedSelect id="monitoring-batch" value={batchId} onChange={(event) => setBatchId(event.target.value)} className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
             <option value="">All batches</option>
             {(monitoring?.filterOptions.batches ?? []).map((batch) => (
               <option key={batch.batchId} value={batch.batchId}>{batch.batchName}</option>
             ))}
-          </select>
+          </ThemedSelect>
         </div>
         <div>
           <Label htmlFor="monitoring-mentor">Mentor</Label>
-          <select id="monitoring-mentor" value={mentorId} onChange={(event) => setMentorId(event.target.value)} className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+          <ThemedSelect id="monitoring-mentor" value={mentorId} onChange={(event) => setMentorId(event.target.value)} className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
             <option value="">All mentors</option>
             {(monitoring?.filterOptions.mentors ?? []).map((mentor) => (
               <option key={mentor.mentorId} value={mentor.mentorId}>{mentor.name || mentor.universityIdNumber}</option>
             ))}
-          </select>
+          </ThemedSelect>
         </div>
         <div>
           <Label htmlFor="monitoring-from">From</Label>

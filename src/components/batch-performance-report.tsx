@@ -1,4 +1,5 @@
 "use client";
+import { ThemedSelect } from "@/components/ui/themed-select";
 
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -91,29 +92,29 @@ export function BatchPerformanceReport({ role }: { role: ReportRole }) {
         {role === "ADMIN" && (
           <div>
             <Label htmlFor="performance-department">Department</Label>
-            <select id="performance-department" value={departmentId} onChange={(event) => {
+            <ThemedSelect id="performance-department" value={departmentId} onChange={(event) => {
               setDepartmentId(event.target.value);
               setBatchId("");
               setMentorId("");
             }} className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
               <option value="">All departments</option>
               {departments.map((department) => <option key={department.id} value={department.id}>{department.name}</option>)}
-            </select>
+            </ThemedSelect>
           </div>
         )}
         <div>
           <Label htmlFor="performance-batch">Batch</Label>
-          <select id="performance-batch" value={batchId} onChange={(event) => setBatchId(event.target.value)} className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+          <ThemedSelect id="performance-batch" value={batchId} onChange={(event) => setBatchId(event.target.value)} className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
             <option value="">All authorized batches</option>
             {batches.map((batch) => <option key={batch.batchId} value={batch.batchId}>{batch.batchName}</option>)}
-          </select>
+          </ThemedSelect>
         </div>
         <div>
           <Label htmlFor="performance-mentor">Recorded by mentor</Label>
-          <select id="performance-mentor" value={mentorId} onChange={(event) => setMentorId(event.target.value)} className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+          <ThemedSelect id="performance-mentor" value={mentorId} onChange={(event) => setMentorId(event.target.value)} className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
             <option value="">All mentors</option>
             {mentors.map((mentor) => <option key={mentor.mentorId} value={mentor.mentorId}>{mentor.name || mentor.universityIdNumber}</option>)}
-          </select>
+          </ThemedSelect>
         </div>
         <div>
           <Label htmlFor="performance-from">From</Label>

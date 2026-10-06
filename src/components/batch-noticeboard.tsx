@@ -1,4 +1,5 @@
 "use client";
+import { ThemedSelect } from "@/components/ui/themed-select";
 
 import { useEffect, useState, type FormEvent } from "react";
 import { ModalPortal } from "@/components/ui/modal-portal";
@@ -260,14 +261,14 @@ export function BatchNoticeboard({ isAdmin = false }: { isAdmin?: boolean }) {
       {isAdmin && (
         <label className="flex flex-col gap-2 text-sm font-medium text-slate-200 sm:max-w-sm">
           Select batch
-          <select
+          <ThemedSelect
             value={selectedBatchId}
             onChange={(event) => setSelectedBatchId(event.target.value)}
             className="h-11 rounded-md border border-slate-600 bg-slate-800 px-3 text-white"
           >
             {batches.map((batch) => <option key={batch.id} value={batch.id}>{batch.name}</option>)}
             {!batches.length && <option value="">No batches available</option>}
-          </select>
+          </ThemedSelect>
         </label>
       )}
 

@@ -1,4 +1,5 @@
 "use client";
+import { ThemedSelect } from "@/components/ui/themed-select";
 
 import React, { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardDescription } from "@/components/ui/card";
@@ -123,7 +124,7 @@ function CreateRemarkForm({ batches, onCreated, onCancel }: CreateRemarkFormProp
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
           <Label htmlFor="remark-batch">Batch *</Label>
-          <select
+          <ThemedSelect
             id="remark-batch"
             className="w-full border rounded-md px-3 py-2 text-sm bg-background"
             value={batchId}
@@ -134,11 +135,11 @@ function CreateRemarkForm({ batches, onCreated, onCancel }: CreateRemarkFormProp
             {batches.map((b) => (
               <option key={b.id} value={b.id}>{b.name}</option>
             ))}
-          </select>
+          </ThemedSelect>
         </div>
         <div className="space-y-1">
           <Label htmlFor="remark-student">Student *</Label>
-          <select
+          <ThemedSelect
             id="remark-student"
             className="w-full border rounded-md px-3 py-2 text-sm bg-background"
             value={studentId}
@@ -151,13 +152,13 @@ function CreateRemarkForm({ batches, onCreated, onCancel }: CreateRemarkFormProp
                 {s.user.universityIdNumber} — {s.user.email}
               </option>
             ))}
-          </select>
+          </ThemedSelect>
         </div>
       </div>
 
       <div className="space-y-1">
         <Label htmlFor="remark-type">Type / Category *</Label>
-        <select
+        <ThemedSelect
           id="remark-type"
           className="w-full border rounded-md px-3 py-2 text-sm bg-background"
           value={type}
@@ -167,7 +168,7 @@ function CreateRemarkForm({ batches, onCreated, onCancel }: CreateRemarkFormProp
           {REMARK_TYPES.map((t) => (
             <option key={t} value={t}>{t}</option>
           ))}
-        </select>
+        </ThemedSelect>
       </div>
 
       <div className="space-y-1">
@@ -243,7 +244,7 @@ function UpdateStatusForm({ remark, onUpdated, onCancel }: UpdateStatusFormProps
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-1">
         <Label htmlFor="update-status">Status *</Label>
-        <select
+        <ThemedSelect
           id="update-status"
           className="w-full border rounded-md px-3 py-2 text-sm bg-background"
           value={status}
@@ -252,7 +253,7 @@ function UpdateStatusForm({ remark, onUpdated, onCancel }: UpdateStatusFormProps
           <option value="OPEN">Open</option>
           <option value="IN_REVIEW">Under Review</option>
           <option value="RESOLVED">Resolved</option>
-        </select>
+        </ThemedSelect>
       </div>
       <div className="space-y-1">
         <Label htmlFor="resolution-note">

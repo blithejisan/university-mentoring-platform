@@ -1,4 +1,5 @@
 "use client";
+import { ThemedSelect } from "@/components/ui/themed-select";
 
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -448,7 +449,7 @@ export function AttendanceSheet({ sessionId, userRole }: Props) {
             <form onSubmit={handleCorrectionSubmit} className="space-y-4">
               <div className="space-y-1">
                 <Label>New Status</Label>
-                <select
+                <ThemedSelect
                   value={newStatus}
                   onChange={(e) => setNewStatus(e.target.value as AttendanceStatus)}
                   className="w-full h-10 px-3 border rounded-md text-sm bg-background"
@@ -457,7 +458,7 @@ export function AttendanceSheet({ sessionId, userRole }: Props) {
                   <option value="ABSENT">ABSENT</option>
                   <option value="LATE">LATE</option>
                   <option value="EXCUSED">EXCUSED</option>
-                </select>
+                </ThemedSelect>
               </div>
 
               <div className="space-y-1">

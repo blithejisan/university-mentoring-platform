@@ -1,4 +1,5 @@
 "use client";
+import { ThemedSelect } from "@/components/ui/themed-select";
 
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -81,7 +82,7 @@ export function PerformanceEntryModal({ batchId, students, onSuccess, onClose }:
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1">
             <Label>Select Student</Label>
-            <select
+            <ThemedSelect
               value={studentId}
               onChange={(e) => setStudentId(e.target.value)}
               className="w-full h-10 px-3 border rounded-md text-sm bg-background"
@@ -92,7 +93,7 @@ export function PerformanceEntryModal({ batchId, students, onSuccess, onClose }:
                   {s.universityIdNumber} ({s.email})
                 </option>
               ))}
-            </select>
+            </ThemedSelect>
           </div>
 
           <div className="space-y-1">
@@ -122,7 +123,7 @@ export function PerformanceEntryModal({ batchId, students, onSuccess, onClose }:
           {mode === "CATEGORY" && (
             <div className="space-y-1">
               <Label>Category</Label>
-              <select
+              <ThemedSelect
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
                 className="w-full h-10 px-3 border rounded-md text-sm bg-background"
@@ -132,7 +133,7 @@ export function PerformanceEntryModal({ batchId, students, onSuccess, onClose }:
                     {c}
                   </option>
                 ))}
-              </select>
+              </ThemedSelect>
               {category === "Other" && (
                 <Input
                   className="mt-2"

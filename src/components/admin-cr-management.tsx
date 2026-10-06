@@ -1,4 +1,5 @@
 "use client";
+import { ThemedSelect } from "@/components/ui/themed-select";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
@@ -94,7 +95,7 @@ export function AdminCRManagement() {
 
   function batchSelector(student: CRStudent) {
     return (
-      <select
+      <ThemedSelect
         aria-label={`CR batch for ${student.name ?? student.universityIdNumber}`}
         value={selectedBatch[student.id] ?? student.batches[0]?.id ?? ""}
         onChange={(event) =>
@@ -111,7 +112,7 @@ export function AdminCRManagement() {
             {batch.name}
           </option>
         ))}
-      </select>
+      </ThemedSelect>
     );
   }
 
@@ -184,7 +185,7 @@ export function AdminCRManagement() {
             onChange={(event) => {
               setQuery(event.target.value);
               searchRequestId.current += 1;
-              setResults([]);
+              if (!event.target.value.trim()) setResults([]);
             }}
             placeholder="Student ID or email"
             aria-label="Search students by ID or email"

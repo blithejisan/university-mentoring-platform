@@ -1,4 +1,5 @@
 "use client";
+import { ThemedSelect } from "@/components/ui/themed-select";
 
 import React, { useState, useEffect, useRef } from "react";
 import * as XLSX from "xlsx";
@@ -109,7 +110,6 @@ export function BatchDetailsView({ batchId, userRole }: Props) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchStudentResult[]>([]);
   const [searching, setSearching] = useState(false);
-  const studentSearchRef = useRef<HTMLDivElement>(null);
   const searchRequestId = useRef(0);
   const [rosterSearch, setRosterSearch] = useState("");
   const [studentIdInput, setStudentIdInput] = useState("");
@@ -460,19 +460,6 @@ export function BatchDetailsView({ batchId, userRole }: Props) {
     };
   }, [canManage, batch?.department.id]);
 
-  useEffect(() => {
-    const handleOutsidePointerDown = (event: PointerEvent) => {
-      if (event.target instanceof Node && !studentSearchRef.current?.contains(event.target)) {
-        searchRequestId.current += 1;
-        setSearchResults([]);
-        setSearching(false);
-      }
-    };
-
-    document.addEventListener("pointerdown", handleOutsidePointerDown);
-    return () => document.removeEventListener("pointerdown", handleOutsidePointerDown);
-  }, []);
-
   function clearStudentSearch() {
     searchRequestId.current += 1;
     setSearchQuery("");
@@ -488,7 +475,6 @@ export function BatchDetailsView({ batchId, userRole }: Props) {
       return;
     }
     const requestId = ++searchRequestId.current;
-    setSearchResults([]);
     setSearching(true);
     try {
       const res = await fetch(`/api/students/search?q=${encodeURIComponent(query)}`);
@@ -506,7 +492,6 @@ export function BatchDetailsView({ batchId, userRole }: Props) {
   }
 
   async function handleAssignStudent(studentUserId: string) {
-    clearStudentSearch();
     try {
       const res = await fetch(`/api/batches/${batchId}/students`, {
         method: "POST",
@@ -515,8 +500,8 @@ export function BatchDetailsView({ batchId, userRole }: Props) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to assign student.");
-      fetchBatchDetails();
       clearStudentSearch();
+      fetchBatchDetails();
     } catch (err: unknown) {
       if (err instanceof Error) {
         alert(err.message);
@@ -616,7 +601,7 @@ export function BatchDetailsView({ batchId, userRole }: Props) {
           <CardContent className="space-y-4">
             {canManage && (
               <div className="flex gap-2">
-                <select
+                <ThemedSelect
                   value={selectedMentorId}
                   onChange={(e) => setSelectedMentorId(e.target.value)}
                   className="flex-1 h-9 px-3 border rounded-md text-sm bg-background"
@@ -629,7 +614,7 @@ export function BatchDetailsView({ batchId, userRole }: Props) {
                         {m.user.universityIdNumber} ({m.user.email})
                       </option>
                     ))}
-                </select>
+                </ThemedSelect>
                 <Button size="sm" onClick={handleAssignMentor} disabled={!selectedMentorId || assigningMentor}>
                   Assign
                 </Button>
@@ -859,17 +844,7 @@ export function BatchDetailsView({ batchId, userRole }: Props) {
             )}
 
             {canManage && (
-              <div
-                ref={studentSearchRef}
-                className="space-y-2"
-                onBlur={(event) => {
-                  if (!event.currentTarget.contains(event.relatedTarget)) {
-                    searchRequestId.current += 1;
-                    setSearchResults([]);
-                    setSearching(false);
-                  }
-                }}
-              >
+              <div className="space-y-2">
                 <form onSubmit={handleSearchStudent} className="flex gap-2">
                   <Input
                     placeholder="Search Student ID or Email..."
@@ -878,8 +853,10 @@ export function BatchDetailsView({ batchId, userRole }: Props) {
                       const value = e.target.value;
                       setSearchQuery(value);
                       searchRequestId.current += 1;
-                      setSearchResults([]);
-                      if (!value.trim()) setSearching(false);
+                      setSearching(false);
+                      if (!value.trim()) {
+                        setSearchResults([]);
+                      }
                     }}
                     className="h-9"
                   />

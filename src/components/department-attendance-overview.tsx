@@ -1,4 +1,5 @@
 "use client";
+import { ThemedSelect } from "@/components/ui/themed-select";
 
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -87,28 +88,28 @@ export function DepartmentAttendanceOverviewCard({ departments = [] }: { departm
         {departments.length > 0 && (
           <div>
             <label htmlFor="attendance-department" className="text-sm font-medium">Department</label>
-            <select id="attendance-department" value={departmentId} onChange={(event) => {
+            <ThemedSelect id="attendance-department" value={departmentId} onChange={(event) => {
               setDepartmentId(event.target.value);
               setBatchId("");
               setMentorId("");
             }} className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
               {departments.map((department) => <option key={department.id} value={department.id}>{department.name}</option>)}
-            </select>
+            </ThemedSelect>
           </div>
         )}
         <div>
           <label htmlFor="attendance-dept-batch" className="text-sm font-medium">Batch</label>
-          <select id="attendance-dept-batch" value={batchId} onChange={(event) => setBatchId(event.target.value)} className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+          <ThemedSelect id="attendance-dept-batch" value={batchId} onChange={(event) => setBatchId(event.target.value)} className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
             <option value="">All batches</option>
             {(overview.filterOptions?.batches ?? []).map((batch) => <option key={batch.batchId} value={batch.batchId}>{batch.batchName}</option>)}
-          </select>
+          </ThemedSelect>
         </div>
         <div>
           <label htmlFor="attendance-dept-mentor" className="text-sm font-medium">Mentor</label>
-          <select id="attendance-dept-mentor" value={mentorId} onChange={(event) => setMentorId(event.target.value)} className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+          <ThemedSelect id="attendance-dept-mentor" value={mentorId} onChange={(event) => setMentorId(event.target.value)} className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
             <option value="">All mentors</option>
             {(overview.filterOptions?.mentors ?? []).map((mentor) => <option key={mentor.mentorId} value={mentor.mentorId}>{mentor.name || mentor.universityIdNumber}</option>)}
-          </select>
+          </ThemedSelect>
         </div>
         <div>
           <label htmlFor="attendance-dept-from" className="text-sm font-medium">From</label>

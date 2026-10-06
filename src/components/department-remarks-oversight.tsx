@@ -1,4 +1,5 @@
 "use client";
+import { ThemedSelect } from "@/components/ui/themed-select";
 
 import React, { useState, useEffect, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -89,7 +90,7 @@ function UpdateStatusForm({
 
       <div className="space-y-1">
         <Label htmlFor="dept-update-status">Status *</Label>
-        <select
+        <ThemedSelect
           id="dept-update-status"
           className="w-full border rounded-md px-3 py-2 text-sm bg-background"
           value={status}
@@ -98,7 +99,7 @@ function UpdateStatusForm({
           <option value="OPEN">Open</option>
           <option value="IN_REVIEW">Under Review</option>
           <option value="RESOLVED">Resolved</option>
-        </select>
+        </ThemedSelect>
       </div>
 
       <div className="space-y-1">

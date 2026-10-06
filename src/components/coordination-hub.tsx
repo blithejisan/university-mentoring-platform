@@ -1,4 +1,5 @@
 "use client";
+import { ThemedSelect } from "@/components/ui/themed-select";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, ChevronDown, ChevronUp, MessageSquare, Send, Trash2 } from "lucide-react";
@@ -106,8 +107,6 @@ export function CoordinationHub({ role }: { role: HubRole }) {
   const [batchStudentsError, setBatchStudentsError] = useState<string | null>(null);
   const [studentIdSearch, setStudentIdSearch] = useState("");
   const [studentResults, setStudentResults] = useState<StudentOption[]>([]);
-  const [studentSearchOpen, setStudentSearchOpen] = useState(false);
-  const studentSearchRef = useRef<HTMLDivElement>(null);
   const [selectedStudent, setSelectedStudent] = useState<StudentOption | null>(null);
   const [searchingStudents, setSearchingStudents] = useState(false);
   const [studentSearchError, setStudentSearchError] = useState<string | null>(null);
@@ -121,17 +120,6 @@ export function CoordinationHub({ role }: { role: HubRole }) {
   const [sendingComment, setSendingComment] = useState(false);
   const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
   const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null);
-
-  useEffect(() => {
-    const handleOutsidePointerDown = (event: PointerEvent) => {
-      if (event.target instanceof Node && !studentSearchRef.current?.contains(event.target)) {
-        setStudentSearchOpen(false);
-      }
-    };
-
-    document.addEventListener("pointerdown", handleOutsidePointerDown);
-    return () => document.removeEventListener("pointerdown", handleOutsidePointerDown);
-  }, []);
 
   const appendComment = useCallback((noteId: string, comment: Comment) => {
     if (seenCommentIds.current.has(comment.id)) return;
@@ -247,9 +235,9 @@ export function CoordinationHub({ role }: { role: HubRole }) {
   useEffect(() => {
     const query = studentIdSearch.trim();
     if (query.length < 2 || selectedStudent) {
-      setStudentResults([]);
+      if (!query) setStudentResults([]);
       setSearchingStudents(false);
-      setStudentSearchError(null);
+      if (!query) setStudentSearchError(null);
       return;
     }
 
@@ -272,7 +260,6 @@ export function CoordinationHub({ role }: { role: HubRole }) {
         setStudentSearchError(
           cause instanceof Error ? cause.message : "Unable to search students."
         );
-        setStudentResults([]);
       } finally {
         if (!controller.signal.aborted) setSearchingStudents(false);
       }
@@ -339,7 +326,6 @@ export function CoordinationHub({ role }: { role: HubRole }) {
       setStudentIdSearch("");
       setSelectedStudent(null);
       setStudentResults([]);
-      setStudentSearchOpen(false);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to create support note.");
     } finally {
@@ -523,10 +509,10 @@ export function CoordinationHub({ role }: { role: HubRole }) {
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="coord-announcement-batch">Audience</Label>
-                    <select id="coord-announcement-batch" value={announcementBatchId} onChange={(event) => setAnnouncementBatchId(event.target.value)} className="h-10 w-full rounded-md border border-input bg-card px-3 text-sm text-foreground">
+                    <ThemedSelect id="coord-announcement-batch" value={announcementBatchId} onChange={(event) => setAnnouncementBatchId(event.target.value)} className="h-10 w-full rounded-md border border-input bg-card px-3 text-sm text-foreground">
                       <option value="">All department batches</option>
                       {batches.map((batch) => <option key={batch.id} value={batch.id}>{batch.name}</option>)}
-                    </select>
+                    </ThemedSelect>
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="coord-announcement-content">Guidance or announcement</Label>
@@ -577,21 +563,20 @@ export function CoordinationHub({ role }: { role: HubRole }) {
               <form className="space-y-4" onSubmit={(event) => void createSupportNote(event)}>
                 <div className="space-y-1.5">
                   <Label htmlFor="coord-note-batch">Batch</Label>
-                  <select id="coord-note-batch" value={noteBatchId} onChange={(event) => {
+                  <ThemedSelect id="coord-note-batch" value={noteBatchId} onChange={(event) => {
                     setNoteBatchId(event.target.value);
                     setNoteStudentId("");
                     setSelectedStudent(null);
                     setStudentIdSearch("");
                     setStudentResults([]);
-                    setStudentSearchOpen(false);
                   }} className="h-10 w-full rounded-md border border-input bg-card px-3 text-sm text-foreground" required>
                     {batches.length === 0 && <option value="">No batches available</option>}
                     {batches.map((batch) => <option key={batch.id} value={batch.id}>{batch.name}</option>)}
-                  </select>
+                  </ThemedSelect>
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="coord-batch-student">Select Student from Selected Batch (optional)</Label>
-                  <select
+                  <ThemedSelect
                     id="coord-batch-student"
                     value={selectedStudent?.batchId === noteBatchId ? selectedStudent.id : ""}
                     onChange={(event) => {
@@ -601,7 +586,6 @@ export function CoordinationHub({ role }: { role: HubRole }) {
                       setStudentIdSearch("");
                       setStudentResults([]);
                       setStudentSearchError(null);
-                      setStudentSearchOpen(false);
                     }}
                     className="h-10 w-full rounded-md border border-input bg-card px-3 text-sm text-foreground"
                     disabled={!noteBatchId || loadingBatchStudents || batchStudents.length === 0}
@@ -618,20 +602,12 @@ export function CoordinationHub({ role }: { role: HubRole }) {
                         {student.name || "Student"} - {student.universityIdNumber}
                       </option>
                     ))}
-                  </select>
+                  </ThemedSelect>
                   {batchStudentsError && (
                     <p className="text-sm text-rose-700" role="alert">{batchStudentsError}</p>
                   )}
                 </div>
-                <div
-                  ref={studentSearchRef}
-                  className="space-y-1.5"
-                  onBlur={(event) => {
-                    if (!event.currentTarget.contains(event.relatedTarget)) {
-                      setStudentSearchOpen(false);
-                    }
-                  }}
-                >
+                <div className="space-y-1.5">
                   <Label htmlFor="coord-student-id-search">Direct Student ID Search (optional)</Label>
                   <Input
                     id="coord-student-id-search"
@@ -639,18 +615,18 @@ export function CoordinationHub({ role }: { role: HubRole }) {
                     onChange={(event) => {
                       const value = event.target.value;
                       setStudentIdSearch(value);
-                      setStudentSearchOpen(value.trim().length >= 2);
                       setNoteStudentId("");
                       setSelectedStudent(null);
-                      setStudentResults([]);
-                      setStudentSearchError(null);
+                      if (!value.trim()) {
+                        setStudentResults([]);
+                        setStudentSearchError(null);
+                      }
                     }}
-                    onFocus={() => setStudentSearchOpen(true)}
                     placeholder="Enter at least 2 characters of a student ID"
                     autoComplete="off"
                     role="combobox"
                     aria-autocomplete="list"
-                    aria-expanded={studentResults.length > 0 && studentSearchOpen && !selectedStudent}
+                    aria-expanded={studentResults.length > 0 && !selectedStudent}
                     aria-controls="coord-student-search-results"
                     aria-describedby="coord-student-search-hint"
                     maxLength={100}
@@ -668,7 +644,7 @@ export function CoordinationHub({ role }: { role: HubRole }) {
                     !selectedStudent && studentResults.length === 0 && (
                       <p className="text-sm text-slate-500" role="status">No enrolled students found in your batches.</p>
                     )}
-                  {studentResults.length > 0 && studentSearchOpen && !selectedStudent && (
+                  {studentResults.length > 0 && !selectedStudent && (
                     <ul
                       id="coord-student-search-results"
                       role="listbox"
@@ -687,7 +663,6 @@ export function CoordinationHub({ role }: { role: HubRole }) {
                               setNoteBatchId(student.batchId);
                               setStudentIdSearch(student.universityIdNumber);
                               setStudentResults([]);
-                              setStudentSearchOpen(false);
                             }}
                             className={`w-full px-3 py-2 text-left text-sm text-foreground hover:bg-muted focus-visible:bg-muted focus-visible:outline-none ${index > 0 ? "border-t border-border" : ""}`}
                           >

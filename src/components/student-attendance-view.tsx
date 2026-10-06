@@ -1,4 +1,5 @@
 "use client";
+import { ThemedSelect } from "@/components/ui/themed-select";
 
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -96,12 +97,12 @@ export function StudentAttendanceView({ studentUserId }: Props) {
       <div className="grid gap-3 sm:grid-cols-3">
         <div>
           <label htmlFor="student-attendance-batch" className="text-sm font-medium">Batch</label>
-          <select id="student-attendance-batch" value={batchId} onChange={(event) => setBatchId(event.target.value)} className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+          <ThemedSelect id="student-attendance-batch" value={batchId} onChange={(event) => setBatchId(event.target.value)} className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
             <option value="">All batches</option>
             {summary.availableBatches.map((batch) => (
               <option key={batch.batchId} value={batch.batchId}>{batch.batchName}</option>
             ))}
-          </select>
+          </ThemedSelect>
         </div>
         <div>
           <label htmlFor="student-attendance-from" className="text-sm font-medium">From</label>

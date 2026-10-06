@@ -1,4 +1,5 @@
 "use client";
+import { ThemedSelect } from "@/components/ui/themed-select";
 
 import React, { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -186,7 +187,7 @@ function CreateNoticeForm({
 
       <div className="space-y-1">
         <Label htmlFor="admin-notice-target">Audience *</Label>
-        <select
+        <ThemedSelect
           id="admin-notice-target"
           className="w-full border rounded-md px-3 py-2 text-sm bg-background"
           value={targetType}
@@ -195,13 +196,13 @@ function CreateNoticeForm({
           {allowedTargets.map((t) => (
             <option key={t} value={t}>{TARGET_LABELS[t]}</option>
           ))}
-        </select>
+        </ThemedSelect>
       </div>
 
       {targetType === "DEPARTMENT" && !scopedDepartmentId && (
         <div className="space-y-1">
           <Label htmlFor="admin-dept">Department *</Label>
-          <select
+          <ThemedSelect
             id="admin-dept"
             className="w-full border rounded-md px-3 py-2 text-sm bg-background"
             value={targetDepartmentId}
@@ -211,14 +212,14 @@ function CreateNoticeForm({
             {departments.map((d) => (
               <option key={d.id} value={d.id}>{d.name} ({d.code})</option>
             ))}
-          </select>
+          </ThemedSelect>
         </div>
       )}
 
       {targetType === "BATCH" && (
         <div className="space-y-1">
           <Label htmlFor="admin-batch">Batch *</Label>
-          <select
+          <ThemedSelect
             id="admin-batch"
             className="w-full border rounded-md px-3 py-2 text-sm bg-background"
             value={targetBatchId}
@@ -229,7 +230,7 @@ function CreateNoticeForm({
             {filteredBatches.map((b) => (
               <option key={b.id} value={b.id}>{b.name}</option>
             ))}
-          </select>
+          </ThemedSelect>
         </div>
       )}
 
@@ -237,10 +238,10 @@ function CreateNoticeForm({
         <div className="space-y-1">
           <Label htmlFor="admin-student-search">Find student by ID or email *</Label>
           <Input id="admin-student-search" value={studentSearch} onChange={(event) => { setStudentSearch(event.target.value); setTargetStudentId(""); }} required />
-          <select className="w-full border rounded-md px-3 py-2 text-sm bg-background" value={targetStudentId} onChange={(event) => setTargetStudentId(event.target.value)} required>
+          <ThemedSelect className="w-full border rounded-md px-3 py-2 text-sm bg-background" value={targetStudentId} onChange={(event) => setTargetStudentId(event.target.value)} required>
             <option value="">Select a student</option>
             {studentOptions.map((student) => <option key={student.userId} value={student.userId}>{student.user.name ?? student.user.universityIdNumber} · {student.user.universityIdNumber} · {student.user.email}</option>)}
-          </select>
+          </ThemedSelect>
         </div>
       )}
 

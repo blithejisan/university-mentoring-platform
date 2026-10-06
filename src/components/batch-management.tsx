@@ -1,4 +1,5 @@
 "use client";
+import { ThemedSelect } from "@/components/ui/themed-select";
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
@@ -254,7 +255,7 @@ export function BatchList({ userRole }: Props) {
               {departments.length > 0 && (
                 <div className="space-y-1">
                   <Label>Department</Label>
-                  <select
+                  <ThemedSelect
                     value={departmentId}
                     onChange={(e) => setDepartmentId(e.target.value)}
                     className="w-full h-10 px-3 border rounded-md text-sm bg-background"
@@ -265,7 +266,7 @@ export function BatchList({ userRole }: Props) {
                         {dept.name} ({dept.code})
                       </option>
                     ))}
-                  </select>
+                  </ThemedSelect>
                 </div>
               )}
 

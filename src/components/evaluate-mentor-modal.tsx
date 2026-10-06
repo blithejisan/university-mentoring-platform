@@ -1,4 +1,5 @@
 "use client";
+import { ThemedSelect } from "@/components/ui/themed-select";
 
 import React, { useState } from "react";
 import { ModalPortal } from "@/components/ui/modal-portal";
@@ -163,7 +164,7 @@ export function EvaluateMentorModal({
               <label htmlFor="eval-mentor" className="text-sm font-medium text-foreground">
                 Mentor for this session
               </label>
-              <select
+              <ThemedSelect
                 id="eval-mentor"
                 value={mentorId}
                 onChange={(event) => setMentorId(event.target.value)}
@@ -175,7 +176,7 @@ export function EvaluateMentorModal({
                     {mentor.label}
                   </option>
                 ))}
-              </select>
+              </ThemedSelect>
             </div>
 
             {/* Required */}

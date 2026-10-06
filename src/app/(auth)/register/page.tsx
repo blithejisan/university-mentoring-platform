@@ -1,4 +1,5 @@
 "use client";
+import { ThemedSelect } from "@/components/ui/themed-select";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -129,7 +130,7 @@ export default function RegisterPage() {
 
           <div className="flex flex-col gap-2">
             <Label htmlFor="department">Department</Label>
-            <select
+            <ThemedSelect
               id="department"
               value={departmentId}
               onChange={(e) => setDepartmentId(e.target.value)}
@@ -144,7 +145,7 @@ export default function RegisterPage() {
                   {d.name} ({d.code})
                 </option>
               ))}
-            </select>
+            </ThemedSelect>
           </div>
 
           <div className="flex flex-col gap-2">
