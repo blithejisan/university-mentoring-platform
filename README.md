@@ -186,7 +186,7 @@ COMMUNICATION_CRON_SECRET="replace-with-a-unique-random-secret"
 ```
 
 Do not commit `.env` or put server secrets in `NEXT_PUBLIC_*` variables.
-Batch notice attachments store a plain URL/path in `attachment.url`, independent of the storage provider. With `STORAGE_DRIVER` unset, uploads use Vercel Blob when `BLOB_READ_WRITE_TOKEN` is configured; otherwise, development automatically stores them under the ignored `public/uploads/notices/` directory. Set `STORAGE_DRIVER=local` to force local storage or `STORAGE_DRIVER=blob` to require Blob credentials. Local storage can also be enabled in production with `STORAGE_DRIVER=local`, but the deployment must provide persistent disk and serve `public/uploads/notices/`. Configure `APP_URL` or `NEXT_PUBLIC_APP_URL` to the deployed origin so uploaded-file links in email notifications resolve correctly.
+Batch notice attachments store a plain URL/path in `attachment.url`, independent of the storage provider. Unless `STORAGE_DRIVER=local` explicitly forces disk storage, uploads use Vercel Blob when `BLOB_READ_WRITE_TOKEN` is configured; otherwise, they fall back to local storage under `public/uploads/notices/` in every environment. `STORAGE_DRIVER=blob` selects Blob when a token exists and falls back to local disk when it does not. Local storage requires persistent disk and the host to serve `public/uploads/notices/`, particularly in production. Configure `APP_URL` or `NEXT_PUBLIC_APP_URL` to the deployed origin so uploaded-file links in email notifications resolve correctly.
 
 ### 3. Apply migrations
 
@@ -227,7 +227,7 @@ Open [http://localhost:3000](http://localhost:3000). Student and mentor registra
 | `APP_URL` | Recommended | Public application origin used to construct verification, reset, and notification links when `NEXT_PUBLIC_APP_URL` and Vercel's `VERCEL_URL` are not set. |
 | `NEXT_PUBLIC_APP_URL` | Optional | Public application origin override used to construct links in notices and email notifications. |
 | `BLOB_READ_WRITE_TOKEN` | For production uploads | Vercel Blob read/write token for durable batch notice attachments; development may use local disk without it. |
-| `STORAGE_DRIVER` | Optional | `local` forces disk storage; `blob` requires `BLOB_READ_WRITE_TOKEN`. If unset, a configured Blob token is preferred and development otherwise uses local disk. |
+| `STORAGE_DRIVER` | Optional | `local` forces disk storage. Otherwise a configured Blob token selects Blob storage and a missing token falls back to local disk. |
 | `EMAIL_PROVIDER` | For email | `console`, `smtp`, or `resend`, depending on the intended delivery setup. |
 | `EMAIL_FROM_ADDRESS` | For email delivery | Formatted sender configured with the chosen provider, including the friendly display name. |
 | `SMTP_HOST`, `SMTP_PORT`, `EMAIL_USER`, `EMAIL_PASS` | For SMTP | SMTP connection and authentication settings. `SMTP_USER` and `SMTP_PASSWORD` remain supported as legacy aliases. |

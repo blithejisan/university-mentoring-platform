@@ -89,16 +89,7 @@ function getStorageDriver(): BatchNoticeAttachmentStorageDriver {
 
   const blobToken = process.env.BLOB_READ_WRITE_TOKEN?.trim();
   if (blobToken) return createBlobStorageDriver(blobToken);
-  if (configuredDriver === "blob") {
-    throw new BatchNoticeAttachmentStorageError(
-      "BLOB_READ_WRITE_TOKEN is required when STORAGE_DRIVER is set to 'blob'."
-    );
-  }
-  if (process.env.NODE_ENV === "development") return createLocalStorageDriver();
-
-  throw new BatchNoticeAttachmentStorageError(
-    "File uploads are not configured. Set BLOB_READ_WRITE_TOKEN or STORAGE_DRIVER=local."
-  );
+  return createLocalStorageDriver();
 }
 
 export async function uploadBatchNoticeAttachment(
