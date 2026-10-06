@@ -33,17 +33,16 @@ interface BatchNoticeAttachmentStorageDriver {
 function createLocalStorageDriver(): BatchNoticeAttachmentStorageDriver {
   return {
     async upload(storedName, bytes) {
-      const uploadDirectory = path.join(
+      const uploadDirectory = path.resolve(
         process.cwd(),
         "public",
         "uploads",
         "notices"
       );
+      const destination = path.join(uploadDirectory, storedName);
       try {
         await mkdir(uploadDirectory, { recursive: true });
-        await writeFile(path.join(uploadDirectory, storedName), bytes, {
-          flag: "wx",
-        });
+        await writeFile(destination, bytes, { flag: "wx" });
       } catch (error) {
         throw new BatchNoticeAttachmentStorageError(
           "The uploaded file could not be saved to local storage.",
@@ -78,17 +77,41 @@ function createBlobStorageDriver(
   };
 }
 
+function logStorageSelection(
+  driver: "blob" | "local",
+  blobTokenPresent: boolean
+) {
+  console.info("[batch-notice-upload] Storage driver selected.", {
+    driver,
+    blobTokenPresent,
+    nodeEnv: process.env.NODE_ENV ?? "unknown",
+    vercelRuntime: process.env.VERCEL === "1",
+  });
+  if (driver === "local" && process.env.VERCEL === "1") {
+    console.warn(
+      "[batch-notice-upload] Local storage selected on Vercel; function filesystems are ephemeral and may not allow writes to the application directory."
+    );
+  }
+}
+
 function getStorageDriver(): BatchNoticeAttachmentStorageDriver {
   const configuredDriver = process.env.STORAGE_DRIVER?.trim().toLowerCase();
-  if (configuredDriver === "local") return createLocalStorageDriver();
+  const blobToken = process.env.BLOB_READ_WRITE_TOKEN?.trim();
+  if (configuredDriver === "local") {
+    logStorageSelection("local", Boolean(blobToken));
+    return createLocalStorageDriver();
+  }
   if (configuredDriver && configuredDriver !== "blob") {
     throw new BatchNoticeAttachmentStorageError(
       "STORAGE_DRIVER must be set to 'local' or 'blob'."
     );
   }
 
-  const blobToken = process.env.BLOB_READ_WRITE_TOKEN?.trim();
-  if (blobToken) return createBlobStorageDriver(blobToken);
+  if (blobToken) {
+    logStorageSelection("blob", true);
+    return createBlobStorageDriver(blobToken);
+  }
+  logStorageSelection("local", false);
   return createLocalStorageDriver();
 }
 
