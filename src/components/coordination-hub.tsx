@@ -106,6 +106,8 @@ export function CoordinationHub({ role }: { role: HubRole }) {
   const [batchStudentsError, setBatchStudentsError] = useState<string | null>(null);
   const [studentIdSearch, setStudentIdSearch] = useState("");
   const [studentResults, setStudentResults] = useState<StudentOption[]>([]);
+  const [studentSearchOpen, setStudentSearchOpen] = useState(false);
+  const studentSearchRef = useRef<HTMLDivElement>(null);
   const [selectedStudent, setSelectedStudent] = useState<StudentOption | null>(null);
   const [searchingStudents, setSearchingStudents] = useState(false);
   const [studentSearchError, setStudentSearchError] = useState<string | null>(null);
@@ -119,6 +121,17 @@ export function CoordinationHub({ role }: { role: HubRole }) {
   const [sendingComment, setSendingComment] = useState(false);
   const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
   const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleOutsidePointerDown = (event: PointerEvent) => {
+      if (event.target instanceof Node && !studentSearchRef.current?.contains(event.target)) {
+        setStudentSearchOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", handleOutsidePointerDown);
+    return () => document.removeEventListener("pointerdown", handleOutsidePointerDown);
+  }, []);
 
   const appendComment = useCallback((noteId: string, comment: Comment) => {
     if (seenCommentIds.current.has(comment.id)) return;
@@ -326,6 +339,7 @@ export function CoordinationHub({ role }: { role: HubRole }) {
       setStudentIdSearch("");
       setSelectedStudent(null);
       setStudentResults([]);
+      setStudentSearchOpen(false);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to create support note.");
     } finally {
@@ -569,6 +583,7 @@ export function CoordinationHub({ role }: { role: HubRole }) {
                     setSelectedStudent(null);
                     setStudentIdSearch("");
                     setStudentResults([]);
+                    setStudentSearchOpen(false);
                   }} className="h-10 w-full rounded-md border border-input bg-card px-3 text-sm text-foreground" required>
                     {batches.length === 0 && <option value="">No batches available</option>}
                     {batches.map((batch) => <option key={batch.id} value={batch.id}>{batch.name}</option>)}
@@ -586,6 +601,7 @@ export function CoordinationHub({ role }: { role: HubRole }) {
                       setStudentIdSearch("");
                       setStudentResults([]);
                       setStudentSearchError(null);
+                      setStudentSearchOpen(false);
                     }}
                     className="h-10 w-full rounded-md border border-input bg-card px-3 text-sm text-foreground"
                     disabled={!noteBatchId || loadingBatchStudents || batchStudents.length === 0}
@@ -607,23 +623,34 @@ export function CoordinationHub({ role }: { role: HubRole }) {
                     <p className="text-sm text-rose-700" role="alert">{batchStudentsError}</p>
                   )}
                 </div>
-                <div className="space-y-1.5">
+                <div
+                  ref={studentSearchRef}
+                  className="space-y-1.5"
+                  onBlur={(event) => {
+                    if (!event.currentTarget.contains(event.relatedTarget)) {
+                      setStudentSearchOpen(false);
+                    }
+                  }}
+                >
                   <Label htmlFor="coord-student-id-search">Direct Student ID Search (optional)</Label>
                   <Input
                     id="coord-student-id-search"
                     value={studentIdSearch}
                     onChange={(event) => {
-                      setStudentIdSearch(event.target.value);
+                      const value = event.target.value;
+                      setStudentIdSearch(value);
+                      setStudentSearchOpen(value.trim().length >= 2);
                       setNoteStudentId("");
                       setSelectedStudent(null);
                       setStudentResults([]);
                       setStudentSearchError(null);
                     }}
+                    onFocus={() => setStudentSearchOpen(true)}
                     placeholder="Enter at least 2 characters of a student ID"
                     autoComplete="off"
                     role="combobox"
                     aria-autocomplete="list"
-                    aria-expanded={studentResults.length > 0 && !selectedStudent}
+                    aria-expanded={studentResults.length > 0 && studentSearchOpen && !selectedStudent}
                     aria-controls="coord-student-search-results"
                     aria-describedby="coord-student-search-hint"
                     maxLength={100}
@@ -641,12 +668,12 @@ export function CoordinationHub({ role }: { role: HubRole }) {
                     !selectedStudent && studentResults.length === 0 && (
                       <p className="text-sm text-slate-500" role="status">No enrolled students found in your batches.</p>
                     )}
-                  {studentResults.length > 0 && !selectedStudent && (
+                  {studentResults.length > 0 && studentSearchOpen && !selectedStudent && (
                     <ul
                       id="coord-student-search-results"
                       role="listbox"
                       aria-label="Matching students"
-                      className="max-h-56 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-sm"
+                      className="max-h-56 overflow-y-auto rounded-lg border border-border bg-card text-foreground shadow-lg"
                     >
                       {studentResults.map((student, index) => (
                         <li key={`${student.id}-${student.batchId}`} role="presentation">
@@ -660,11 +687,12 @@ export function CoordinationHub({ role }: { role: HubRole }) {
                               setNoteBatchId(student.batchId);
                               setStudentIdSearch(student.universityIdNumber);
                               setStudentResults([]);
+                              setStudentSearchOpen(false);
                             }}
-                            className={`w-full px-3 py-2 text-left text-sm text-slate-800 hover:bg-emerald-50 focus-visible:bg-emerald-50 focus-visible:outline-none ${index > 0 ? "border-t border-slate-100" : ""}`}
+                            className={`w-full px-3 py-2 text-left text-sm text-foreground hover:bg-muted focus-visible:bg-muted focus-visible:outline-none ${index > 0 ? "border-t border-border" : ""}`}
                           >
                             <span className="block font-medium">{student.name || "Student"} · {student.universityIdNumber}</span>
-                            <span className="block text-xs text-slate-500">{student.batchName}</span>
+                            <span className="block text-xs text-muted-foreground">{student.batchName}</span>
                           </button>
                         </li>
                       ))}

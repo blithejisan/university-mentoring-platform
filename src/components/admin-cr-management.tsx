@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 
 type BatchChoice = { id: string; name: string };
 type CRStudent = {
@@ -20,13 +20,14 @@ export function AdminCRManagement() {
   const [pending, setPending] = useState<CRStudent[]>([]);
   const [results, setResults] = useState<CRStudent[]>([]);
   const [query, setQuery] = useState("");
+  const searchRequestId = useRef(0);
   const [selectedBatch, setSelectedBatch] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
-  async function load(search = "") {
+  async function load(search = "", requestId?: number) {
     setLoading(true);
     setError(null);
     try {
@@ -36,7 +37,9 @@ export function AdminCRManagement() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Could not load CR management.");
       setPending(data.pendingRequests ?? []);
-      setResults(data.searchResults ?? []);
+      if (requestId === undefined || requestId === searchRequestId.current) {
+        setResults(data.searchResults ?? []);
+      }
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Could not load CR management.");
     } finally {
@@ -50,7 +53,8 @@ export function AdminCRManagement() {
 
   async function search(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    await load(query);
+    const requestId = ++searchRequestId.current;
+    await load(query, requestId);
   }
 
   async function update(student: CRStudent, action: "APPROVE" | "REJECT") {
@@ -177,7 +181,11 @@ export function AdminCRManagement() {
         <form onSubmit={search} className="flex flex-col gap-2 sm:flex-row">
           <input
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              searchRequestId.current += 1;
+              setResults([]);
+            }}
             placeholder="Student ID or email"
             aria-label="Search students by ID or email"
             className="h-10 min-w-0 flex-1 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900"
@@ -187,7 +195,7 @@ export function AdminCRManagement() {
           </button>
         </form>
         {results.length > 0 && <div className="space-y-3">{results.map((student) => studentCard(student, false))}</div>}
-        {!loading && query && results.length === 0 && (
+        {!loading && query.trim() && results.length === 0 && (
           <p className="text-sm text-slate-500">No matching student accounts found.</p>
         )}
       </section>

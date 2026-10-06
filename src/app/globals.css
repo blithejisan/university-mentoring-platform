@@ -121,6 +121,30 @@ body.theme-obsidian {
   color-scheme: dark;
 }
 
+body.theme-obsidian select {
+  border-color: var(--color-border);
+  background-color: var(--color-card);
+  color: var(--color-foreground);
+  color-scheme: dark;
+}
+
+body.theme-obsidian select option,
+body.theme-obsidian select optgroup {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+}
+
+body.theme-obsidian select option:hover,
+body.theme-obsidian select option:focus,
+body.theme-obsidian select option:checked {
+  background-color: var(--color-muted);
+  color: var(--color-foreground);
+}
+
+:root.light body.theme-obsidian select {
+  color-scheme: light;
+}
+
 html {
   scroll-behavior: smooth;
   background: var(--color-background);

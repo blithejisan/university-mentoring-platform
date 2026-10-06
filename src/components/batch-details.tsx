@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -109,6 +109,8 @@ export function BatchDetailsView({ batchId, userRole }: Props) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchStudentResult[]>([]);
   const [searching, setSearching] = useState(false);
+  const studentSearchRef = useRef<HTMLDivElement>(null);
+  const searchRequestId = useRef(0);
   const [rosterSearch, setRosterSearch] = useState("");
   const [studentIdInput, setStudentIdInput] = useState("");
   const [newStudentName, setNewStudentName] = useState("");
@@ -458,24 +460,53 @@ export function BatchDetailsView({ batchId, userRole }: Props) {
     };
   }, [canManage, batch?.department.id]);
 
+  useEffect(() => {
+    const handleOutsidePointerDown = (event: PointerEvent) => {
+      if (event.target instanceof Node && !studentSearchRef.current?.contains(event.target)) {
+        searchRequestId.current += 1;
+        setSearchResults([]);
+        setSearching(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", handleOutsidePointerDown);
+    return () => document.removeEventListener("pointerdown", handleOutsidePointerDown);
+  }, []);
+
+  function clearStudentSearch() {
+    searchRequestId.current += 1;
+    setSearchQuery("");
+    setSearchResults([]);
+    setSearching(false);
+  }
+
   async function handleSearchStudent(e: React.FormEvent) {
     e.preventDefault();
-    if (!searchQuery.trim()) return;
+    const query = searchQuery.trim();
+    if (!query) {
+      clearStudentSearch();
+      return;
+    }
+    const requestId = ++searchRequestId.current;
+    setSearchResults([]);
     setSearching(true);
     try {
-      const res = await fetch(`/api/students/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      const res = await fetch(`/api/students/search?q=${encodeURIComponent(query)}`);
       if (res.ok) {
         const data = await res.json();
-        setSearchResults(data.students || []);
+        if (requestId === searchRequestId.current) {
+          setSearchResults(data.students || []);
+        }
       }
     } catch (err) {
       console.error("Search failed", err);
     } finally {
-      setSearching(false);
+      if (requestId === searchRequestId.current) setSearching(false);
     }
   }
 
   async function handleAssignStudent(studentUserId: string) {
+    clearStudentSearch();
     try {
       const res = await fetch(`/api/batches/${batchId}/students`, {
         method: "POST",
@@ -485,8 +516,7 @@ export function BatchDetailsView({ batchId, userRole }: Props) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to assign student.");
       fetchBatchDetails();
-      setSearchResults([]);
-      setSearchQuery("");
+      clearStudentSearch();
     } catch (err: unknown) {
       if (err instanceof Error) {
         alert(err.message);
@@ -829,12 +859,28 @@ export function BatchDetailsView({ batchId, userRole }: Props) {
             )}
 
             {canManage && (
-              <div className="space-y-2">
+              <div
+                ref={studentSearchRef}
+                className="space-y-2"
+                onBlur={(event) => {
+                  if (!event.currentTarget.contains(event.relatedTarget)) {
+                    searchRequestId.current += 1;
+                    setSearchResults([]);
+                    setSearching(false);
+                  }
+                }}
+              >
                 <form onSubmit={handleSearchStudent} className="flex gap-2">
                   <Input
                     placeholder="Search Student ID or Email..."
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setSearchQuery(value);
+                      searchRequestId.current += 1;
+                      setSearchResults([]);
+                      if (!value.trim()) setSearching(false);
+                    }}
                     className="h-9"
                   />
                   <Button size="sm" type="submit" disabled={searching}>
@@ -843,7 +889,7 @@ export function BatchDetailsView({ batchId, userRole }: Props) {
                 </form>
 
                 {searchResults.length > 0 && (
-                  <div className="border rounded-md max-h-40 overflow-y-auto divide-y bg-background text-sm">
+                  <div className="max-h-40 divide-y divide-border overflow-y-auto rounded-md border border-border bg-card text-sm text-foreground">
                     {searchResults.map((s) => {
                       const isAssigned = batch.studentBatches.some((sb) => sb.studentId === s.userId && !sb.leftAt);
                       return (
@@ -854,7 +900,7 @@ export function BatchDetailsView({ batchId, userRole }: Props) {
                             <span className="text-xs text-muted-foreground ml-2">({s.user.email})</span>
                           </div>
                           {isAssigned ? (
-                            <span className="text-xs text-emerald-600 font-medium px-2 py-0.5 bg-emerald-50 rounded">
+                            <span className="rounded bg-emerald-900/40 px-2 py-0.5 text-xs font-medium text-emerald-300">
                               Assigned
                             </span>
                           ) : (
