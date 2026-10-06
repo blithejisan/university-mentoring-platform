@@ -226,8 +226,8 @@ Open [http://localhost:3000](http://localhost:3000). Student and mentor registra
 | `NEXT_PUBLIC_APP_URL` | Optional | Public application origin override used to construct links in notices and email notifications. |
 | `BLOB_READ_WRITE_TOKEN` | For production uploads | Vercel Blob read/write token for durable batch notice attachments; development may use local disk without it. |
 | `EMAIL_PROVIDER` | For email | `console`, `smtp`, or `resend`, depending on the intended delivery setup. |
-| `EMAIL_FROM_ADDRESS` | For email delivery | Sender address configured with the chosen provider. |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` | For SMTP | SMTP connection and authentication settings. |
+| `EMAIL_FROM_ADDRESS` | For email delivery | Formatted sender configured with the chosen provider, including the friendly display name. |
+| `SMTP_HOST`, `SMTP_PORT`, `EMAIL_USER`, `EMAIL_PASS` | For SMTP | SMTP connection and authentication settings. `SMTP_USER` and `SMTP_PASSWORD` remain supported as legacy aliases. |
 | `RESEND_API_KEY` | For Resend | API key for the Resend provider. |
 | `COMMUNICATION_CRON_SECRET` | For scheduler | Bearer secret required by `POST /api/cron/communication`. Keep this secret server-side. |
 | `SEED_ADMIN_ID`, `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD` | Optional | Complete set to seed an admin account. |
@@ -238,7 +238,7 @@ Prisma CLI migrations use `DIRECT_URL` when configured and otherwise fall back t
 
 ### Email and scheduled communication
 
-To deliver email, choose `EMAIL_PROVIDER=smtp` and configure all SMTP settings, or choose `EMAIL_PROVIDER=resend` and configure `RESEND_API_KEY`. Set `EMAIL_FROM_ADDRESS` to a provider-authorized sender and `APP_URL` to the deployed origin.
+To deliver email, choose `EMAIL_PROVIDER=smtp` and configure `SMTP_HOST`, `SMTP_PORT`, `EMAIL_USER`, and `EMAIL_PASS`, or choose `EMAIL_PROVIDER=resend` and configure `RESEND_API_KEY`. Set `EMAIL_FROM_ADDRESS` to a provider-authorized sender (for example, `"GUB ADS Department" <ads.department.gub@gmail.com>`) and `APP_URL` to the deployed origin. The SMTP sender also accepts the legacy `SMTP_USER` and `SMTP_PASSWORD` variable names.
 
 When using scheduled notices and session reminders, configure `COMMUNICATION_CRON_SECRET` and arrange an external scheduler to send a `POST` request to `/api/cron/communication` at least every 15 minutes:
 

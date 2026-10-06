@@ -56,14 +56,14 @@ async function sendWithResend(input: SendEmailInput): Promise<EmailSendResult> {
 async function sendWithSmtp(input: SendEmailInput): Promise<EmailSendResult> {
   const host = process.env.SMTP_HOST;
   const port = Number(process.env.SMTP_PORT);
-  const user = process.env.SMTP_USER;
-  const password = process.env.SMTP_PASSWORD;
+  const user = process.env.EMAIL_USER ?? process.env.SMTP_USER;
+  const password = process.env.EMAIL_PASS ?? process.env.SMTP_PASSWORD;
   const from = process.env.EMAIL_FROM_ADDRESS;
 
   if (!host || !Number.isInteger(port) || port < 1 || port > 65535 || !user || !password || !from) {
     return {
       success: false,
-      error: "SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, and EMAIL_FROM_ADDRESS are required.",
+      error: "SMTP_HOST, SMTP_PORT, EMAIL_USER (or SMTP_USER), EMAIL_PASS (or SMTP_PASSWORD), and EMAIL_FROM_ADDRESS are required.",
     };
   }
 

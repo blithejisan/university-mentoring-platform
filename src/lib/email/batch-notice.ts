@@ -68,10 +68,6 @@ export async function sendBatchNoticeEmails(noticeId: string) {
   const emails = [...new Set(recipients.map(({ email }) => email))];
   const attachments = getAttachments(notice.attachments);
   const authorName = notice.author.name ?? "Batch CR";
-  const senderName = `${authorName} (CR, Batch ${notice.batch.name}) via Green University ADS Portal`
-    .replace(/[\r\n\x00-\x1f\x7f]/g, " ");
-  const fromAddress = process.env.EMAIL_FROM_ADDRESS;
-  const from = fromAddress ? `${senderName} <${fromAddress}>` : undefined;
   const portalUrl = getAppUrl("/student/my-batch");
   const safeContent = escapeHtml(notice.content).replace(/\r?\n/g, "<br>");
   const attachmentHtml = attachments.length
@@ -107,7 +103,6 @@ export async function sendBatchNoticeEmails(noticeId: string) {
       batchRecipients.map(async (to) => {
         const result = await sendEmail({
           to,
-          from,
           subject: `[Batch ${notice.batch.name} Announcement] ${notice.title}`,
           html,
           text,
