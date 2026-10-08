@@ -24,6 +24,7 @@ export function AdminCRManagement() {
   const studentSearchRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
   const searchRequestId = useRef(0);
+  const [resultsQuery, setResultsQuery] = useState("");
   const [selectedBatch, setSelectedBatch] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
@@ -68,18 +69,17 @@ export function AdminCRManagement() {
 
   async function search(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const searchQuery = query.trim();
+    const formData = new FormData(event.currentTarget);
+    const searchQuery = String(formData.get("query") ?? "").trim();
     if (!searchQuery) {
-      searchRequestId.current += 1;
-      setResults([]);
       setShowSearchResults(false);
-      setSearching(false);
       return;
     }
 
     const requestId = ++searchRequestId.current;
     setShowSearchResults(true);
     setSearching(true);
+    setResultsQuery("");
     setError(null);
     try {
       const params = new URLSearchParams({ q: searchQuery });
@@ -88,11 +88,11 @@ export function AdminCRManagement() {
       if (!response.ok) throw new Error(data.error ?? "Could not search students.");
       if (requestId === searchRequestId.current) {
         setResults(data.searchResults ?? []);
+        setResultsQuery(searchQuery);
       }
     } catch (searchError) {
       if (requestId === searchRequestId.current) {
         setError(searchError instanceof Error ? searchError.message : "Could not search students.");
-        setResults([]);
       }
     } finally {
       if (requestId === searchRequestId.current) setSearching(false);
@@ -237,11 +237,9 @@ export function AdminCRManagement() {
               onChange={(event) => {
                 const value = event.target.value;
                 setQuery(value);
-                searchRequestId.current += 1;
-                setResults([]);
                 setShowSearchResults(false);
-                setSearching(false);
               }}
+              name="query"
               placeholder="Student ID or email"
               aria-label="Search students by ID or email"
               className="h-10 min-w-0 flex-1 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900"
@@ -250,10 +248,10 @@ export function AdminCRManagement() {
               {searching ? "Searching…" : "Search"}
             </button>
           </form>
-          {showSearchResults && results.length > 0 && (
+          {showSearchResults && !searching && resultsQuery === query.trim() && results.length > 0 && (
             <div className="mt-3 space-y-3">{results.map((student) => studentCard(student, false))}</div>
           )}
-          {showSearchResults && !searching && !error && query.trim() && results.length === 0 && (
+          {showSearchResults && !searching && !error && resultsQuery === query.trim() && query.trim() && results.length === 0 && (
             <p className="mt-3 text-sm text-slate-500">No matching student accounts found.</p>
           )}
         </div>
