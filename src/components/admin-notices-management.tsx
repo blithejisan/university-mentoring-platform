@@ -91,6 +91,8 @@ function CreateNoticeForm({
   const [targetStudentId, setTargetStudentId] = useState("");
   const [studentSearch, setStudentSearch] = useState("");
   const [studentOptions, setStudentOptions] = useState<StudentOption[]>([]);
+  const [searchingStudents, setSearchingStudents] = useState(false);
+  const [studentSearchError, setStudentSearchError] = useState<string | null>(null);
   const [publishAt, setPublishAt] = useState("");
   const [expiryAt, setExpiryAt] = useState("");
   const [loading, setLoading] = useState(false);
@@ -101,19 +103,30 @@ function CreateNoticeForm({
     : batches.filter((b) => !targetDepartmentId || b.departmentId === targetDepartmentId);
 
   useEffect(() => {
-    if (targetType !== "STUDENT" || !studentSearch.trim()) {
+    const query = studentSearch.trim();
+    if (targetType !== "STUDENT" || !query) {
       setStudentOptions([]);
+      setSearchingStudents(false);
+      setStudentSearchError(null);
       return;
     }
     const controller = new AbortController();
-    fetch(`/api/students/search?q=${encodeURIComponent(studentSearch.trim())}&purpose=notice`, { signal: controller.signal })
+    setStudentOptions([]);
+    setSearchingStudents(true);
+    setStudentSearchError(null);
+    fetch(`/api/students/search?q=${encodeURIComponent(query)}&purpose=notice`, { signal: controller.signal })
       .then(async (response) => {
         const payload = await response.json();
         if (!response.ok) throw new Error(payload.error ?? "Unable to search students.");
-        setStudentOptions(payload.students ?? []);
+        if (!controller.signal.aborted) setStudentOptions(payload.students ?? []);
       })
       .catch((cause: unknown) => {
-        if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : "Unable to search students.");
+        if (!controller.signal.aborted) {
+          setStudentSearchError(cause instanceof Error ? cause.message : "Unable to search students.");
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setSearchingStudents(false);
       });
     return () => controller.abort();
   }, [studentSearch, targetType]);
@@ -191,7 +204,10 @@ function CreateNoticeForm({
           id="admin-notice-target"
           className="w-full border rounded-md px-3 py-2 text-sm bg-background"
           value={targetType}
-          onChange={(e) => setTargetType(e.target.value as TargetType)}
+          onChange={(e) => {
+            setTargetType(e.target.value as TargetType);
+            setTargetStudentId("");
+          }}
         >
           {allowedTargets.map((t) => (
             <option key={t} value={t}>{TARGET_LABELS[t]}</option>
@@ -237,9 +253,14 @@ function CreateNoticeForm({
       {targetType === "STUDENT" && (
         <div className="space-y-1">
           <Label htmlFor="admin-student-search">Find student by ID or email *</Label>
-          <Input id="admin-student-search" value={studentSearch} onChange={(event) => { setStudentSearch(event.target.value); setTargetStudentId(""); }} required />
+          <Input id="admin-student-search" value={studentSearch} onChange={(event) => { setStudentSearch(event.target.value); setStudentOptions([]); setStudentSearchError(null); setTargetStudentId(""); }} required />
+          {searchingStudents && <p className="text-sm text-muted-foreground" role="status">Searching students...</p>}
+          {studentSearchError && <p className="text-sm text-destructive" role="alert">{studentSearchError}</p>}
+          {!searchingStudents && !studentSearchError && studentSearch.trim() && studentOptions.length === 0 && (
+            <p className="text-sm text-muted-foreground" role="status">No matching students found.</p>
+          )}
           <ThemedSelect className="w-full border rounded-md px-3 py-2 text-sm bg-background" value={targetStudentId} onChange={(event) => setTargetStudentId(event.target.value)} required>
-            <option value="">Select a student</option>
+            <option value="">{searchingStudents ? "Searching students..." : "Select a student"}</option>
             {studentOptions.map((student) => <option key={student.userId} value={student.userId}>{student.user.name ?? student.user.universityIdNumber} · {student.user.universityIdNumber} · {student.user.email}</option>)}
           </ThemedSelect>
         </div>

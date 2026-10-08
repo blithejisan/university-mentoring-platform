@@ -129,9 +129,18 @@ export function CoordinationHub({ role }: { role: HubRole }) {
         setShowSearchResults(false);
       }
     };
+    const handleOutsideFocus = (event: FocusEvent) => {
+      if (event.target instanceof Node && !studentSearchRef.current?.contains(event.target)) {
+        setShowSearchResults(false);
+      }
+    };
 
     document.addEventListener("pointerdown", handleOutsidePointerDown);
-    return () => document.removeEventListener("pointerdown", handleOutsidePointerDown);
+    document.addEventListener("focusin", handleOutsideFocus);
+    return () => {
+      document.removeEventListener("pointerdown", handleOutsidePointerDown);
+      document.removeEventListener("focusin", handleOutsideFocus);
+    };
   }, []);
 
   const appendComment = useCallback((noteId: string, comment: Comment) => {
@@ -248,12 +257,13 @@ export function CoordinationHub({ role }: { role: HubRole }) {
   useEffect(() => {
     const query = studentIdSearch.trim();
     if (query.length < 2 || selectedStudent) {
-      if (!query) setStudentResults([]);
+      setStudentResults([]);
       setSearchingStudents(false);
-      if (!query) setStudentSearchError(null);
+      setStudentSearchError(null);
       return;
     }
 
+    setStudentResults([]);
     const controller = new AbortController();
     const timeout = window.setTimeout(async () => {
       setSearchingStudents(true);
@@ -267,7 +277,7 @@ export function CoordinationHub({ role }: { role: HubRole }) {
           response,
           "Unable to search students."
         );
-        setStudentResults(payload.students);
+        if (!controller.signal.aborted) setStudentResults(payload.students);
       } catch (cause) {
         if (cause instanceof Error && cause.name === "AbortError") return;
         setStudentSearchError(
@@ -623,11 +633,6 @@ export function CoordinationHub({ role }: { role: HubRole }) {
                 <div
                   ref={studentSearchRef}
                   className="space-y-1.5"
-                  onBlur={(event) => {
-                    if (!event.currentTarget.contains(event.relatedTarget)) {
-                      setShowSearchResults(false);
-                    }
-                  }}
                 >
                   <Label htmlFor="coord-student-id-search">Direct Student ID Search (optional)</Label>
                   <Input
@@ -641,9 +646,9 @@ export function CoordinationHub({ role }: { role: HubRole }) {
                       setStudentIdSearch(value);
                       setNoteStudentId("");
                       setSelectedStudent(null);
+                      setStudentResults([]);
+                      setStudentSearchError(null);
                       if (!value.trim()) {
-                        setStudentResults([]);
-                        setStudentSearchError(null);
                         setShowSearchResults(false);
                       } else {
                         setShowSearchResults(true);

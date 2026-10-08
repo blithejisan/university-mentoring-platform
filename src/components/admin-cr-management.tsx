@@ -38,23 +38,33 @@ export function AdminCRManagement() {
         setShowSearchResults(false);
       }
     };
+    const handleOutsideFocus = (event: FocusEvent) => {
+      if (event.target instanceof Node && !studentSearchRef.current?.contains(event.target)) {
+        setShowSearchResults(false);
+      }
+    };
 
     document.addEventListener("pointerdown", handleOutsidePointerDown);
-    return () => document.removeEventListener("pointerdown", handleOutsidePointerDown);
+    document.addEventListener("focusin", handleOutsideFocus);
+    return () => {
+      document.removeEventListener("pointerdown", handleOutsidePointerDown);
+      document.removeEventListener("focusin", handleOutsideFocus);
+    };
   }, []);
 
-  async function load(search = "", requestId?: number) {
+  async function load(search?: string, requestId?: number) {
     setLoading(true);
     setError(null);
     try {
       const params = new URLSearchParams();
-      if (search.trim()) params.set("q", search.trim());
+      if (search?.trim()) params.set("q", search.trim());
       const response = await fetch(`/api/admin/cr?${params.toString()}`);
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Could not load CR management.");
       setPending(data.pendingRequests ?? []);
-      if (requestId === undefined || requestId === searchRequestId.current) {
+      if (search !== undefined && requestId === searchRequestId.current) {
         setResults(data.searchResults ?? []);
+        setResultsQuery(search.trim());
       }
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Could not load CR management.");
@@ -126,7 +136,9 @@ export function AdminCRManagement() {
           ? `${student.name ?? student.universityIdNumber} is now an approved CR.`
           : `${student.name ?? student.universityIdNumber}'s CR request was rejected.`
       );
-      await load(query);
+      const activeSearchQuery = resultsQuery === query.trim() ? resultsQuery : "";
+      const requestId = activeSearchQuery ? ++searchRequestId.current : undefined;
+      await load(activeSearchQuery || undefined, requestId);
     } catch (updateError) {
       setError(updateError instanceof Error ? updateError.message : "CR status could not be updated.");
     } finally {
@@ -220,14 +232,7 @@ export function AdminCRManagement() {
           <h2 className="text-lg font-semibold text-slate-900">Find an existing student</h2>
           <p className="text-sm text-slate-600">Search by student ID or email to approve a previously imported student without re-registration.</p>
         </div>
-        <div
-          ref={studentSearchRef}
-          onBlur={(event) => {
-            if (!event.currentTarget.contains(event.relatedTarget)) {
-              setShowSearchResults(false);
-            }
-          }}
-        >
+        <div ref={studentSearchRef} aria-busy={searching}>
           <form onSubmit={search} className="flex flex-col gap-2 sm:flex-row">
             <input
               value={query}
