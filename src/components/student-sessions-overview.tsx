@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { getSessionDisplayStatus } from "@/lib/session-status";
 
 type StudentBatch = {
   id: string;
@@ -35,20 +36,22 @@ function formatSessionTime(date: string, startTime: string | null, endTime: stri
     .join(" · ");
 }
 
-function SessionRow({ session, history = false }: { session: StudentSession; history?: boolean }) {
+function SessionRow({ session, history = false, now }: { session: StudentSession; history?: boolean; now: number }) {
+  const displayStatus = getSessionDisplayStatus(session, now);
+
   return (
     <div className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="font-medium text-slate-900">{session.topic || "Mentoring Session"}</h3>
           <span className={`rounded border px-2 py-0.5 text-xs font-medium ${
-            session.status === "COMPLETED"
+            displayStatus === "COMPLETED"
               ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-              : session.status === "CANCELLED"
+              : displayStatus === "CANCELLED"
                 ? "border-slate-200 bg-slate-100 text-slate-600"
                 : "border-amber-200 bg-amber-50 text-amber-700"
           }`}>
-            {session.status}
+            {displayStatus}
           </span>
         </div>
         <p className="mt-1 text-sm text-muted-foreground">{session.batchName} · {formatSessionTime(session.date, session.startTime, session.endTime)}</p>
@@ -114,6 +117,11 @@ export function StudentSessionsOverview({ batches }: { batches: StudentBatch[] }
     return () => controller.abort();
   }, [batches]);
 
+  useEffect(() => {
+    const intervalId = window.setInterval(() => setCurrentTime(Date.now()), 60_000);
+    return () => window.clearInterval(intervalId);
+  }, []);
+
   if (loading) {
     return <p className="py-6 text-sm text-muted-foreground" role="status">Loading your mentoring sessions...</p>;
   }
@@ -147,7 +155,7 @@ export function StudentSessionsOverview({ batches }: { batches: StudentBatch[] }
           <CardContent className="divide-y pt-0">
             {upcoming.length === 0 ? (
               <p className="py-4 text-sm text-muted-foreground">No upcoming sessions.</p>
-            ) : upcoming.map((session) => <SessionRow key={session.id} session={session} />)}
+            ) : upcoming.map((session) => <SessionRow key={session.id} session={session} now={now} />)}
           </CardContent>
         </Card>
 
@@ -159,7 +167,7 @@ export function StudentSessionsOverview({ batches }: { batches: StudentBatch[] }
           <CardContent className="max-h-[28rem] divide-y overflow-y-auto pt-0">
             {history.length === 0 ? (
               <p className="py-4 text-sm text-muted-foreground">No session history yet.</p>
-            ) : history.map((session) => <SessionRow key={session.id} session={session} history />)}
+            ) : history.map((session) => <SessionRow key={session.id} session={session} history now={now} />)}
           </CardContent>
         </Card>
       </div>

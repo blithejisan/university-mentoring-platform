@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ModalPortal } from "@/components/ui/modal-portal";
+import { getSessionDisplayStatus } from "@/lib/session-status";
 
 interface Session {
   id: string;
@@ -131,6 +132,11 @@ export function SessionList({ batchId, userRole }: Props) {
     };
   }, [batchId]);
 
+  useEffect(() => {
+    const intervalId = window.setInterval(() => setCurrentTime(Date.now()), 60_000);
+    return () => window.clearInterval(intervalId);
+  }, []);
+
   async function fetchSessions() {
     try {
       const res = await fetch(`/api/sessions?batchId=${batchId}`);
@@ -237,64 +243,67 @@ export function SessionList({ batchId, userRole }: Props) {
             <Card><CardContent className="py-7 text-center text-sm text-slate-600">{view === "UPCOMING" ? "No upcoming mentoring sessions." : "No session history yet."}</CardContent></Card>
           ) : (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              {visibleSessions.map((s) => (
-                <Card key={s.id} className="hover:shadow-md transition-shadow">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <span className="inline-block px-2 py-0.5 text-xs font-semibold bg-primary/10 text-primary rounded mb-1">
-                          {new Date(s.date).toLocaleDateString()}
-                        </span>
-                        <CardTitle className="text-lg">{s.topic || "Mentoring Session"}</CardTitle>
-                      </div>
-                      <span
-                        className={`text-xs px-2 py-1 rounded font-medium ${
-                          s.status === "COMPLETED"
-                            ? "bg-emerald-500/10 text-emerald-600"
-                            : s.status === "SCHEDULED"
-                            ? "bg-amber-500/10 text-amber-600"
-                            : "bg-gray-500/10 text-gray-600"
-                        }`}
-                      >
-                        {s.status}
-                      </span>
-                    </div>
-                    {s.location && (
-                      <CardDescription>Location: {s.location}</CardDescription>
-                    )}
-                  </CardHeader>
-                  <CardContent className="pt-2">
-                    <div className="flex items-center justify-between text-xs text-muted-foreground mb-4">
-                      {userRole === "STUDENT" ? (
+              {visibleSessions.map((s) => {
+                const displayStatus = getSessionDisplayStatus(s, now);
+                return (
+                  <Card key={s.id} className="hover:shadow-md transition-shadow">
+                    <CardHeader className="pb-2">
+                      <div className="flex items-start justify-between">
                         <div>
-                          My Attendance: <span className="font-semibold text-foreground">{s.attendanceRecord?.status ?? "Not recorded"}</span>
+                          <span className="inline-block px-2 py-0.5 text-xs font-semibold bg-primary/10 text-primary rounded mb-1">
+                            {new Date(s.date).toLocaleDateString()}
+                          </span>
+                          <CardTitle className="text-lg">{s.topic || "Mentoring Session"}</CardTitle>
                         </div>
-                      ) : (
-                        <>
-                          <div>
-                            Mentors: <span className="font-semibold text-foreground">
-                              {s.sessionMentors?.length
-                                ? s.sessionMentors
-                                    .map((assignment) => assignment.mentor.user.universityIdNumber)
-                                    .join(", ")
-                                : s.mentor?.universityIdNumber}
-                            </span>
-                          </div>
-                          <div>
-                            Attendance Records: <span className="font-semibold text-foreground">{s._count?.attendanceRecords ?? 0}</span>
-                          </div>
-                        </>
+                        <span
+                          className={`text-xs px-2 py-1 rounded font-medium ${
+                            displayStatus === "COMPLETED"
+                              ? "bg-emerald-500/10 text-emerald-600"
+                              : displayStatus === "SCHEDULED"
+                              ? "bg-amber-500/10 text-amber-600"
+                              : "bg-gray-500/10 text-gray-600"
+                          }`}
+                        >
+                          {displayStatus}
+                        </span>
+                      </div>
+                      {s.location && (
+                        <CardDescription>Location: {s.location}</CardDescription>
                       )}
-                    </div>
-                    <a
-                      href={`/${userRole.toLowerCase()}/sessions/${s.id}`}
-                      className="inline-flex items-center text-sm font-medium text-primary hover:underline"
-                    >
-                      {s.status === "COMPLETED" ? "View Attendance Sheet →" : "Mark Attendance →"}
-                    </a>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardHeader>
+                    <CardContent className="pt-2">
+                      <div className="flex items-center justify-between text-xs text-muted-foreground mb-4">
+                        {userRole === "STUDENT" ? (
+                          <div>
+                            My Attendance: <span className="font-semibold text-foreground">{s.attendanceRecord?.status ?? "Not recorded"}</span>
+                          </div>
+                        ) : (
+                          <>
+                            <div>
+                              Mentors: <span className="font-semibold text-foreground">
+                                {s.sessionMentors?.length
+                                  ? s.sessionMentors
+                                      .map((assignment) => assignment.mentor.user.universityIdNumber)
+                                      .join(", ")
+                                  : s.mentor?.universityIdNumber}
+                              </span>
+                            </div>
+                            <div>
+                              Attendance Records: <span className="font-semibold text-foreground">{s._count?.attendanceRecords ?? 0}</span>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                      <a
+                        href={`/${userRole.toLowerCase()}/sessions/${s.id}`}
+                        className="inline-flex items-center text-sm font-medium text-primary hover:underline"
+                      >
+                        {s.status === "COMPLETED" ? "View Attendance Sheet →" : "Mark Attendance →"}
+                      </a>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           )}
         </>

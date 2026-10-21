@@ -13,6 +13,7 @@ type AttendanceStatus = "PRESENT" | "ABSENT" | "LATE" | "EXCUSED";
 interface StudentUser {
   id: string;
   universityIdNumber: string;
+  name: string | null;
   email: string;
 }
 
@@ -359,7 +360,9 @@ export function AttendanceSheet({ sessionId, userRole }: Props) {
                   <div key={s.userId} className="flex items-center justify-between p-3 text-sm hover:bg-muted/30">
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold">{s.user.universityIdNumber}</span>
+                        <span className="font-semibold">
+                          {s.user.name || "Student"} (ID: {s.user.universityIdNumber})
+                        </span>
                         {editLogs.length > 0 && (
                           <button
                             onClick={() => setViewingEdits(editLogs)}
