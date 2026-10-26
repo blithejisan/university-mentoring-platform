@@ -9,6 +9,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Bell, Plus, Archive, Calendar, AlertCircle, Info } from "lucide-react";
+import { NoticeDetailDialog } from "@/components/notice-detail-dialog";
+import { fetchWithSession } from "@/lib/fetch-with-session";
 
 type TargetType = "ALL" | "DEPARTMENT" | "BATCH" | "STUDENT";
 
@@ -114,7 +116,7 @@ function CreateNoticeForm({
     setStudentOptions([]);
     setSearchingStudents(true);
     setStudentSearchError(null);
-    fetch(`/api/students/search?q=${encodeURIComponent(query)}&purpose=notice`, { signal: controller.signal })
+    fetchWithSession(`/api/students/search?q=${encodeURIComponent(query)}&purpose=notice`, { signal: controller.signal })
       .then(async (response) => {
         const payload = await response.json();
         if (!response.ok) throw new Error(payload.error ?? "Unable to search students.");
@@ -154,7 +156,7 @@ function CreateNoticeForm({
       if (publishAt) body.publishAt = new Date(publishAt).toISOString();
       if (expiryAt) body.expiryAt = new Date(expiryAt).toISOString();
 
-      const res = await fetch("/api/notices", {
+      const res = await fetchWithSession("/api/notices", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -308,14 +310,15 @@ export function AdminNoticesManagement({ role, scopedDepartmentId }: Props) {
   const [showCreate, setShowCreate] = useState(false);
   const [filterStatus, setFilterStatus] = useState<"ACTIVE" | "ARCHIVED">("ACTIVE");
   const [error, setError] = useState<string | null>(null);
+  const [selectedNotice, setSelectedNotice] = useState<Notice | null>(null);
 
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       const [noticesRes, deptRes, batchRes] = await Promise.all([
-        fetch(`/api/notices?status=${filterStatus}`),
-        fetch("/api/departments"),
-        fetch("/api/batches"),
+        fetchWithSession(`/api/notices?status=${filterStatus}`),
+        fetchWithSession("/api/departments"),
+        fetchWithSession("/api/batches"),
       ]);
       const [noticesJson, deptJson, batchJson] = await Promise.all([
         noticesRes.json(),
@@ -336,7 +339,7 @@ export function AdminNoticesManagement({ role, scopedDepartmentId }: Props) {
 
   const handleArchive = async (noticeId: string) => {
     try {
-      const res = await fetch(`/api/notices/${noticeId}`, { method: "DELETE" });
+      const res = await fetchWithSession(`/api/notices/${noticeId}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed to archive.");
       await fetchData();
     } catch (err: unknown) {
@@ -416,54 +419,87 @@ export function AdminNoticesManagement({ role, scopedDepartmentId }: Props) {
         </Card>
       ) : (
         <div className="space-y-3">
-          {notices.map((n) => (
-            <div key={n.id} className={`rounded-lg border border-slate-200 bg-white p-4 ${n.status === "ARCHIVED" ? "opacity-70" : ""}`}>
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-wrap items-center gap-2 mb-1">
-                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${TARGET_COLORS[n.targetType]}`}>
-                      {TARGET_LABELS[n.targetType]}
-                      {n.targetType === "BATCH" && n.targetBatch ? ` · ${n.targetBatch.name}` : ""}
-                      {n.targetType === "DEPARTMENT" && n.targetDepartment
-                        ? ` · ${n.targetDepartment.name}`
-                        : ""}
-                    </span>
-                      {n.publishAt && new Date(n.publishAt) > new Date() && <span className="text-xs rounded-full bg-sky-100 px-2 py-0.5 text-sky-700">Scheduled</span>}
-                    <span className="text-xs text-muted-foreground">
-                      by {n.createdBy.universityIdNumber} ({n.createdBy.role})
-                    </span>
-                    {n.expiryAt && new Date(n.expiryAt) < new Date() && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-600">Expired</span>
-                    )}
-                  </div>
-                  <h3 className="text-sm font-semibold leading-snug text-slate-900">{n.title}</h3>
-                  <p className="mt-1 text-sm leading-relaxed text-slate-600 line-clamp-2">{n.message}</p>
-                </div>
-                {n.status === "ACTIVE" && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleArchive(n.id)}
-                    title="Archive"
-                  >
-                    <Archive className="size-4" />
-                  </Button>
-                )}
-              </div>
-              <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <Calendar className="size-3" />
-                  {new Date(n.createdAt).toLocaleDateString()}
-                </span>
-                {n.expiryAt && (
-                  <span>Expires {new Date(n.expiryAt).toLocaleDateString()}</span>
-                )}
-                {n.publishAt && <span>Publishes {new Date(n.publishAt).toLocaleString()}</span>}
-              </div>
-            </div>
+          {notices.map((notice) => (
+            <AdminNoticeCard
+              key={notice.id}
+              notice={notice}
+              onOpen={() => setSelectedNotice(notice)}
+              onArchive={() => handleArchive(notice.id)}
+            />
           ))}
         </div>
       )}
+      <NoticeDetailDialog notice={selectedNotice} onClose={() => setSelectedNotice(null)} />
+    </div>
+  );
+}
+
+function AdminNoticeCard({
+  notice,
+  onOpen,
+  onArchive,
+}: {
+  notice: Notice;
+  onOpen: () => void;
+  onArchive: () => void;
+}) {
+  return (
+    <div className={`rounded-lg border border-slate-200 bg-white p-4 transition-colors hover:bg-slate-50 ${notice.status === "ARCHIVED" ? "opacity-70" : ""}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div
+          className="min-w-0 flex-1 cursor-pointer text-left focus-visible:rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          onClick={onOpen}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              onOpen();
+            }
+          }}
+          role="button"
+          tabIndex={0}
+          aria-label={`Read full notice: ${notice.title}`}
+        >
+          <div className="flex flex-wrap items-center gap-2 mb-1">
+            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${TARGET_COLORS[notice.targetType]}`}>
+              {TARGET_LABELS[notice.targetType]}
+              {notice.targetType === "BATCH" && notice.targetBatch ? ` · ${notice.targetBatch.name}` : ""}
+              {notice.targetType === "DEPARTMENT" && notice.targetDepartment
+                ? ` · ${notice.targetDepartment.name}`
+                : ""}
+            </span>
+            {notice.publishAt && new Date(notice.publishAt) > new Date() && (
+              <span className="text-xs rounded-full bg-sky-100 px-2 py-0.5 text-sky-700">Scheduled</span>
+            )}
+            <span className="text-xs text-muted-foreground">
+              by {notice.createdBy.universityIdNumber} ({notice.createdBy.role})
+            </span>
+            {notice.expiryAt && new Date(notice.expiryAt) < new Date() && (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-600">Expired</span>
+            )}
+          </div>
+          <h3 className="text-sm font-semibold leading-snug text-slate-900">{notice.title}</h3>
+          <p className="mt-1 text-sm leading-relaxed text-slate-600 line-clamp-2">{notice.message}</p>
+        </div>
+        {notice.status === "ACTIVE" && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onArchive}
+            title="Archive"
+            aria-label={`Archive notice: ${notice.title}`}
+          >
+            <Archive className="size-4" />
+          </Button>
+        )}
+      </div>
+      <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1">
+          <Calendar className="size-3" />
+          {new Date(notice.createdAt).toLocaleDateString()}
+        </span>
+        {notice.expiryAt && <span>Expires {new Date(notice.expiryAt).toLocaleDateString()}</span>}
+        {notice.publishAt && <span>Publishes {new Date(notice.publishAt).toLocaleString()}</span>}
+      </div>
     </div>
   );
 }

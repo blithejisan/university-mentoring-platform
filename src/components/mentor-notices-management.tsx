@@ -2,13 +2,15 @@
 import { ThemedSelect } from "@/components/ui/themed-select";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { Card, CardContent, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Bell, Plus, Archive, Calendar, Tag, ChevronRight, AlertCircle } from "lucide-react";
+import { NoticeDetailDialog } from "@/components/notice-detail-dialog";
+import { fetchWithSession } from "@/lib/fetch-with-session";
 
 interface Batch {
   id: string;
@@ -73,7 +75,7 @@ function CreateNoticeForm({ batches, onCreated, onCancel }: CreateNoticeFormProp
     setStudentOptions([]);
     setSearchingStudents(true);
     setStudentSearchError(null);
-    fetch(`/api/students/search?q=${encodeURIComponent(query)}&purpose=notice`, { signal: controller.signal })
+    fetchWithSession(`/api/students/search?q=${encodeURIComponent(query)}&purpose=notice`, { signal: controller.signal })
       .then(async (response) => {
         const payload = await response.json();
         if (!response.ok) throw new Error(payload.error ?? "Unable to search students.");
@@ -112,7 +114,7 @@ function CreateNoticeForm({ batches, onCreated, onCancel }: CreateNoticeFormProp
       if (publishAt) body.publishAt = new Date(publishAt).toISOString();
       if (expiryAt) body.expiryAt = new Date(expiryAt).toISOString();
 
-      const res = await fetch("/api/notices", {
+      const res = await fetchWithSession("/api/notices", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -239,31 +241,54 @@ function CreateNoticeForm({ batches, onCreated, onCancel }: CreateNoticeFormProp
   );
 }
 
-function NoticeCard({ notice, onArchive }: { notice: Notice; onArchive: (id: string) => void }) {
+function NoticeCard({
+  notice,
+  onArchive,
+  onOpen,
+}: {
+  notice: Notice;
+  onArchive: (id: string) => void;
+  onOpen: () => void;
+}) {
   return (
-    <div className={`border rounded-lg p-4 ${notice.status === "ARCHIVED" ? "opacity-60" : ""}`}>
+    <div className={`border rounded-lg p-4 hover:bg-muted/40 transition-colors ${notice.status === "ARCHIVED" ? "opacity-60" : ""}`}>
       <div className="flex items-start justify-between gap-3">
-        <div className="flex-1 min-w-0">
-          <div className="flex flex-wrap items-center gap-2 mb-1">
-            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${TARGET_COLORS[notice.targetType]}`}>
-              {notice.targetType === "BATCH" && notice.targetBatch
-                ? `Batch · ${notice.targetBatch.name}`
-                : notice.targetType}
-            </span>
-            {notice.status === "ARCHIVED" && (
-              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
-                Archived
+        <div
+          className="group flex flex-1 min-w-0 cursor-pointer items-start justify-between gap-3 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          onClick={onOpen}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              onOpen();
+            }
+          }}
+          role="button"
+          tabIndex={0}
+          aria-label={`Read full notice: ${notice.title}`}
+        >
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2 mb-1">
+              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${TARGET_COLORS[notice.targetType]}`}>
+                {notice.targetType === "BATCH" && notice.targetBatch
+                  ? `Batch · ${notice.targetBatch.name}`
+                  : notice.targetType}
               </span>
-            )}
-            {notice.publishAt && new Date(notice.publishAt) > new Date() && <span className="text-xs rounded-full bg-sky-100 px-2 py-0.5 text-sky-700">Scheduled</span>}
-            {notice.expiryAt && new Date(notice.expiryAt) < new Date() && (
-              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-red-100 text-red-600">
-                Expired
-              </span>
-            )}
+              {notice.status === "ARCHIVED" && (
+                <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                  Archived
+                </span>
+              )}
+              {notice.publishAt && new Date(notice.publishAt) > new Date() && <span className="text-xs rounded-full bg-sky-100 px-2 py-0.5 text-sky-700">Scheduled</span>}
+              {notice.expiryAt && new Date(notice.expiryAt) < new Date() && (
+                <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-red-100 text-red-600">
+                  Expired
+                </span>
+              )}
+            </div>
+            <h3 className="font-semibold text-sm text-foreground">{notice.title}</h3>
+            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{notice.message}</p>
           </div>
-          <h3 className="font-semibold text-sm text-foreground">{notice.title}</h3>
-          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{notice.message}</p>
+          <ChevronRight className="mt-1 size-4 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground" aria-hidden="true" />
         </div>
         {notice.status === "ACTIVE" && (
           <Button
@@ -301,13 +326,14 @@ export function MentorNoticesManagement() {
   const [showCreate, setShowCreate] = useState(false);
   const [filter, setFilter] = useState<"ACTIVE" | "ARCHIVED">("ACTIVE");
   const [error, setError] = useState<string | null>(null);
+  const [selectedNotice, setSelectedNotice] = useState<Notice | null>(null);
 
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       const [noticesRes, batchesRes] = await Promise.all([
-        fetch(`/api/notices?status=${filter}`),
-        fetch("/api/batches"),
+        fetchWithSession(`/api/notices?status=${filter}`),
+        fetchWithSession("/api/batches"),
       ]);
 
       if (!noticesRes.ok || !batchesRes.ok) throw new Error("Failed to load data.");
@@ -326,7 +352,7 @@ export function MentorNoticesManagement() {
 
   const handleArchive = async (noticeId: string) => {
     try {
-      const res = await fetch(`/api/notices/${noticeId}`, { method: "DELETE" });
+      const res = await fetchWithSession(`/api/notices/${noticeId}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed to archive notice.");
       await fetchData();
     } catch (err: unknown) {
@@ -395,14 +421,16 @@ export function MentorNoticesManagement() {
       ) : (
         <div className="space-y-3">
           {notices.map((n) => (
-            <NoticeCard key={n.id} notice={n} onArchive={handleArchive} />
+            <NoticeCard
+              key={n.id}
+              notice={n}
+              onArchive={handleArchive}
+              onOpen={() => setSelectedNotice(n)}
+            />
           ))}
         </div>
       )}
+      <NoticeDetailDialog notice={selectedNotice} onClose={() => setSelectedNotice(null)} />
     </div>
   );
 }
-
-// Suppress unused
-void CardDescription;
-void ChevronRight;

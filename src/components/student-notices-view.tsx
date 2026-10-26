@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Bell, Calendar, Clock, Tag, Info, ChevronRight } from "lucide-react";
+import { fetchWithSession } from "@/lib/fetch-with-session";
 
 interface NoticeAuthor {
   universityIdNumber: string;
@@ -167,7 +168,7 @@ export function StudentNoticesView() {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch("/api/notices");
+      const res = await fetchWithSession("/api/notices");
       if (!res.ok) throw new Error("Failed to load notices.");
       const json = await res.json();
       setNotices(json.notices ?? []);
