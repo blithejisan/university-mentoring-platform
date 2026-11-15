@@ -5,14 +5,15 @@ import {
   CalendarPlus,
   Clock3,
   Trophy,
+  UsersRound,
 } from "lucide-react";
 
 type MentorBatchSummary = {
   id: string;
   name: string;
   status: string;
-  totalSessions: number;
   completedSessions: number;
+  scheduledSessions: number;
   nextSession: {
     date: Date;
     startTime: Date | null;
@@ -55,6 +56,19 @@ const activityTone: Record<DashboardActivity["tone"], string> = {
   violet: "bg-violet-400 shadow-[0_0_10px_rgba(167,139,250,0.6)]",
 };
 
+const batchThemes = [
+  {
+    card: "border-[#1499A8]/30 border-l-[#1499A8] hover:border-[#1499A8]/60",
+    badge: "border-[#1499A8]/40 bg-[#1499A8]/15 text-[#55c7d2] ring-[#1499A8]/15",
+    progress: "from-[#1499A8] to-[#55c7d2]",
+  },
+  {
+    card: "border-[#8B9FE8]/30 border-l-[#8B9FE8] hover:border-[#8B9FE8]/60",
+    badge: "border-[#8B9FE8]/40 bg-[#8B9FE8]/15 text-[#b3c0ff] ring-[#8B9FE8]/15",
+    progress: "from-[#8B9FE8] to-[#b3c0ff]",
+  },
+] as const;
+
 export function MentorDashboardPanels({
   batches,
   activities,
@@ -68,7 +82,7 @@ export function MentorDashboardPanels({
 
   return (
     <section className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.9fr)_minmax(18rem,1fr)]" aria-label="Mentor workspace">
-      <div className="rounded-2xl border border-slate-500/20 bg-card/85 p-4 shadow-sm backdrop-blur-md transition-all duration-200 ease-out hover:border-teal-400/25 hover:shadow-[0_12px_30px_rgba(2,8,18,0.2)] active:scale-[0.98] sm:p-5">
+      <div className="rounded-2xl border border-slate-500/20 bg-card/85 p-4 shadow-sm backdrop-blur-md transition-all duration-200 ease-out hover:border-teal-400/25 hover:shadow-[0_12px_30px_rgba(2,8,18,0.2)] sm:p-5">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <span className="flex size-10 items-center justify-center rounded-xl border border-teal-400/20 bg-teal-400/10 text-teal-300">
@@ -93,9 +107,11 @@ export function MentorDashboardPanels({
           </p>
         ) : (
           <div className="space-y-3">
-            {batches.map((batch) => {
-              const progress = batch.totalSessions
-                ? Math.min(100, Math.round((batch.completedSessions / batch.totalSessions) * 100))
+            {batches.map((batch, index) => {
+              const theme = batchThemes[index % batchThemes.length];
+              const totalTrackedSessions = batch.completedSessions + batch.scheduledSessions;
+              const progress = totalTrackedSessions
+                ? Math.min(100, Math.round((batch.completedSessions / totalTrackedSessions) * 100))
                 : 0;
               const status = batch.nextSession
                 ? "Upcoming"
@@ -106,23 +122,39 @@ export function MentorDashboardPanels({
               return (
                 <article
                   key={batch.id}
-                  className="rounded-xl border border-slate-500/20 bg-[#15273a]/80 p-4 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-teal-400/30 hover:bg-[#192f45] active:scale-[0.98]"
+                  className={`rounded-xl border border-l-2 bg-[#15273a]/80 p-4 transition-colors duration-200 hover:bg-[#192f45] ${theme.card}`}
                 >
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="truncate text-sm font-semibold text-foreground sm:text-base">{batch.name}</h3>
-                        <span className={`rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${
-                          status === "Upcoming"
-                            ? "border-sky-400/25 bg-sky-400/10 text-sky-300"
-                            : status === "Active"
-                              ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-300"
-                              : "border-slate-400/20 bg-slate-400/10 text-slate-300"
-                        }`}>
-                          {status}
-                        </span>
+                    <div className="flex min-w-0 items-center gap-3">
+                      <Link
+                        href={`/mentor/batches/${batch.id}`}
+                        aria-label={`View ${batch.name} batch details`}
+                        className={`flex size-11 shrink-0 items-center justify-center rounded-full border ring-4 transition-transform duration-200 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[#15273a] active:scale-[0.98] ${theme.badge}`}
+                      >
+                        <UsersRound aria-hidden="true" className="size-5" />
+                      </Link>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="truncate text-sm font-semibold sm:text-base">
+                            <Link
+                              href={`/mentor/batches/${batch.id}`}
+                              className="rounded-sm text-foreground transition-colors hover:text-teal-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300/70"
+                            >
+                              {batch.name}
+                            </Link>
+                          </h3>
+                          <span className={`rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${
+                            status === "Upcoming"
+                              ? "border-sky-400/25 bg-sky-400/10 text-sky-300"
+                              : status === "Active"
+                                ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-300"
+                                : "border-slate-400/20 bg-slate-400/10 text-slate-300"
+                          }`}>
+                            {status}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-xs text-muted-foreground">Mentoring sessions</p>
                       </div>
-                      <p className="mt-1 text-xs text-muted-foreground">Mentoring sessions</p>
                     </div>
                     <Link
                       href="/mentor/sessions"
@@ -155,22 +187,25 @@ export function MentorDashboardPanels({
                       </span>
                     </div>
                     <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                      <span>Total sessions</span>
+                      <span>Completed / total</span>
                       <span className="font-medium text-foreground">
-                        {batch.completedSessions} / {batch.totalSessions}
+                        {batch.completedSessions} / {totalTrackedSessions}
                       </span>
                     </div>
                   </div>
+                  <p className="mt-2 text-[11px] text-muted-foreground">
+                    {batch.completedSessions} completed · {batch.scheduledSessions} scheduled
+                  </p>
                   <div
                     className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-600/40"
                     role="progressbar"
                     aria-label={`${batch.name} completed sessions`}
                     aria-valuemin={0}
-                    aria-valuemax={batch.totalSessions}
+                    aria-valuemax={Math.max(totalTrackedSessions, 1)}
                     aria-valuenow={batch.completedSessions}
                   >
                     <div
-                      className="h-full rounded-full bg-gradient-to-r from-teal-400 to-cyan-300 transition-[width] duration-500"
+                      className={`h-full rounded-full bg-gradient-to-r transition-[width] duration-500 ${theme.progress}`}
                       style={{ width: `${progress}%` }}
                     />
                   </div>
@@ -182,7 +217,7 @@ export function MentorDashboardPanels({
       </div>
 
       <div className="flex flex-col gap-4">
-        <div className="rounded-2xl border border-slate-500/20 bg-card/85 p-4 shadow-sm backdrop-blur-md transition-all duration-200 ease-out hover:border-teal-400/25 hover:shadow-[0_12px_30px_rgba(2,8,18,0.2)] active:scale-[0.98] sm:p-5">
+        <div className="rounded-2xl border border-slate-500/20 bg-card/85 p-4 shadow-sm backdrop-blur-md transition-all duration-200 ease-out hover:border-teal-400/25 hover:shadow-[0_12px_30px_rgba(2,8,18,0.2)] sm:p-5">
           <div className="mb-4 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2.5">
               <Activity aria-hidden="true" className="size-5 text-teal-300" />
@@ -218,7 +253,7 @@ export function MentorDashboardPanels({
           )}
         </div>
 
-        <div className="relative isolate overflow-hidden rounded-2xl border border-slate-500/20 bg-card/85 p-4 shadow-sm transition-all duration-200 ease-out hover:border-teal-400/25 hover:shadow-[0_12px_30px_rgba(2,8,18,0.2)] active:scale-[0.98] sm:p-5">
+        <div className="relative isolate overflow-hidden rounded-2xl border border-slate-500/20 bg-card/85 p-4 shadow-sm transition-all duration-200 ease-out hover:border-teal-400/25 hover:shadow-[0_12px_30px_rgba(2,8,18,0.2)] sm:p-5">
           <svg aria-hidden="true" className="pointer-events-none absolute -bottom-8 -right-4 -z-10 h-32 w-48 text-teal-400/25" viewBox="0 0 192 128" fill="none">
             <path d="M192 0C148 20 154 73 97 91C56 104 33 102 0 128H192V0Z" fill="currentColor" />
             <path d="M192 25C160 49 164 83 126 102C104 113 86 119 66 128H192V25Z" fill="currentColor" fillOpacity=".7" />

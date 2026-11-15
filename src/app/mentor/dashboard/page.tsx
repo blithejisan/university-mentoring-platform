@@ -41,9 +41,14 @@ export default async function MentorDashboardPage() {
               id: true,
               name: true,
               status: true,
-              _count: { select: { attendanceSessions: true } },
               attendanceSessions: {
-                where: { status: "SCHEDULED", date: { gte: now } },
+                where: {
+                  status: "SCHEDULED",
+                  OR: [
+                    { startTime: { gte: now } },
+                    { startTime: null, date: { gte: now } },
+                  ],
+                },
                 orderBy: [{ date: "asc" }, { startTime: "asc" }],
                 take: 1,
                 select: { date: true, startTime: true, topic: true },
@@ -66,7 +71,10 @@ export default async function MentorDashboardPage() {
       prisma.attendanceSession.count({
         where: {
           status: "SCHEDULED",
-          date: { gte: now },
+          OR: [
+            { startTime: { gte: now } },
+            { startTime: null, date: { gte: now } },
+          ],
           batch: { mentorBatches: { some: { mentorId: session.sub } } },
         },
       }),
@@ -89,25 +97,56 @@ export default async function MentorDashboardPage() {
       }),
     ]);
   const batchIds = assignedBatches.map(({ batch }) => batch.id);
-  const completedSessions = batchIds.length
-    ? await prisma.attendanceSession.groupBy({
-        by: ["batchId"],
-        where: { batchId: { in: batchIds }, status: "COMPLETED" },
-        _count: { _all: true },
-      })
-    : [];
-  const completedCountByBatch = new Map(
-    completedSessions.map(({ batchId, _count }) => [batchId, _count._all])
-  );
+  const [sessionCountsByStatus, pastScheduledSessions] = batchIds.length
+    ? await Promise.all([
+        prisma.attendanceSession.groupBy({
+          by: ["batchId", "status"],
+          where: {
+            batchId: { in: batchIds },
+            status: { in: ["COMPLETED", "SCHEDULED"] },
+          },
+          _count: { _all: true },
+        }),
+        prisma.attendanceSession.groupBy({
+          by: ["batchId"],
+          where: {
+            batchId: { in: batchIds },
+            status: "SCHEDULED",
+            OR: [
+              { startTime: { lte: now } },
+              { startTime: null, date: { lte: now } },
+            ],
+          },
+          _count: { _all: true },
+        }),
+      ])
+    : [[], []];
+  const sessionsByBatch = new Map<string, { completed: number; scheduled: number }>();
+  for (const { batchId, status, _count } of sessionCountsByStatus) {
+    const counts = sessionsByBatch.get(batchId) ?? { completed: 0, scheduled: 0 };
+    if (status === "COMPLETED") counts.completed += _count._all;
+    if (status === "SCHEDULED") counts.scheduled += _count._all;
+    sessionsByBatch.set(batchId, counts);
+  }
+  for (const { batchId, _count } of pastScheduledSessions) {
+    const counts = sessionsByBatch.get(batchId);
+    if (counts) {
+      counts.completed += _count._all;
+      counts.scheduled -= _count._all;
+    }
+  }
   const batchSummaries = assignedBatches
-    .map(({ batch }) => ({
-      id: batch.id,
-      name: batch.name,
-      status: batch.status,
-      totalSessions: batch._count.attendanceSessions,
-      completedSessions: completedCountByBatch.get(batch.id) ?? 0,
-      nextSession: batch.attendanceSessions[0] ?? null,
-    }))
+    .map(({ batch }) => {
+      const sessionCounts = sessionsByBatch.get(batch.id) ?? { completed: 0, scheduled: 0 };
+      return {
+        id: batch.id,
+        name: batch.name,
+        status: batch.status,
+        completedSessions: sessionCounts.completed,
+        scheduledSessions: sessionCounts.scheduled,
+        nextSession: batch.attendanceSessions[0] ?? null,
+      };
+    })
     .sort((left, right) => left.name.localeCompare(right.name));
 
   const activityItems = [
@@ -147,9 +186,9 @@ export default async function MentorDashboardPage() {
         departmentName={profile.department.name}
         description="Manage mentoring sessions, stay connected with your students, and follow their progress."
         metrics={[
-          { label: "Assigned batches", value: assignedBatches.length, Icon: Layers3, tone: "violet" },
-          { label: "Active students", value: activeStudentsCount, Icon: UsersRound, tone: "cyan" },
-          { label: "Upcoming sessions", value: upcomingSessionsCount, Icon: CalendarDays, tone: "teal" },
+          { label: "Assigned batches", value: assignedBatches.length, Icon: Layers3, tone: "violet", href: "/mentor/batches" },
+          { label: "Active students", value: activeStudentsCount, Icon: UsersRound, tone: "cyan", href: "/mentor/batches" },
+          { label: "Upcoming sessions", value: upcomingSessionsCount, Icon: CalendarDays, tone: "teal", href: "/mentor/sessions" },
         ]}
       />
 

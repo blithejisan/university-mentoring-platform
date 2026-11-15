@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import { DashboardClock } from "@/components/dashboard-clock";
 
@@ -7,6 +8,7 @@ type DashboardMetric = {
   value: number;
   Icon: LucideIcon;
   tone: "cyan" | "violet" | "teal" | "amber";
+  href?: string;
 };
 
 type DashboardOverviewProps = {
@@ -111,22 +113,33 @@ export function DashboardOverview({
               : ""
         }`}
       >
-        {metrics.map(({ label, value, Icon, tone }) => (
+        {metrics.map(({ label, value, Icon, tone, href }) => (
           <div
             key={label}
-            className="dashboard-metric relative flex min-w-0 items-center gap-3 overflow-hidden rounded-xl border border-border/80 bg-card/85 p-3.5 shadow-sm backdrop-blur-md transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-teal-400/30 hover:shadow-[0_12px_30px_rgba(2,8,18,0.2)] active:scale-[0.98] sm:gap-4 sm:p-4"
+            className="dashboard-metric relative flex min-w-0 flex-col items-start overflow-hidden rounded-xl border border-border/80 bg-card/85 p-3.5 shadow-sm backdrop-blur-md transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-teal-400/30 hover:shadow-[0_12px_30px_rgba(2,8,18,0.2)] sm:p-4"
           >
-            <span className={`relative z-10 flex size-10 shrink-0 items-center justify-center rounded-full border sm:size-12 ${metricTone[tone]}`}>
-              <Icon aria-hidden="true" className="size-5 sm:size-6" />
-            </span>
-            <div className="relative z-10 min-w-0">
-              <p className="text-xl font-semibold leading-none tracking-tight text-slate-50 sm:text-2xl">
-                {value.toLocaleString()}
-              </p>
-              <p className="mt-1.5 truncate text-xs font-medium text-slate-300 sm:text-sm">
-                {label}
-              </p>
+            <div className="relative z-10 flex min-w-0 items-center gap-3 sm:gap-4">
+              <span className={`flex size-10 shrink-0 items-center justify-center rounded-full border sm:size-12 ${metricTone[tone]}`}>
+                <Icon aria-hidden="true" className="size-5 sm:size-6" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-xl font-semibold leading-none tracking-tight text-slate-50 sm:text-2xl">
+                  {value.toLocaleString()}
+                </p>
+                <p className="mt-1.5 truncate text-xs font-medium text-slate-300 sm:text-sm">
+                  {label}
+                </p>
+              </div>
             </div>
+            {href && (
+              <Link
+                href={href}
+                aria-label={`View ${label.toLowerCase()} details`}
+                className="relative z-10 mt-3 inline-flex items-center gap-1 rounded px-1 py-0.5 text-xs font-semibold text-teal-300 transition-colors hover:text-teal-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300/70"
+              >
+                View details <span aria-hidden="true">→</span>
+              </Link>
+            )}
             <svg aria-hidden="true" className={`pointer-events-none absolute -bottom-1 -right-1 h-12 w-24 ${metricSparkline[tone]}`} viewBox="0 0 96 48" fill="none">
               <path d="M1 39C12 39 13 27 23 30C32 33 33 19 43 23C53 27 57 33 66 21C75 9 78 14 84 19C89 23 92 11 96 8V48H1V39Z" fill="currentColor" fillOpacity=".08" />
               <path d="M1 39C12 39 13 27 23 30C32 33 33 19 43 23C53 27 57 33 66 21C75 9 78 14 84 19C89 23 92 11 96 8" stroke="currentColor" strokeWidth="1.5" />
