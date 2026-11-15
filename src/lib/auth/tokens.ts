@@ -1,6 +1,7 @@
 import crypto from "crypto";
 
 const VERIFICATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+export const VERIFICATION_RESEND_COOLDOWN_MS = 5 * 60 * 1000;
 const RESET_TOKEN_TTL_MS = 30 * 60 * 1000; // 30 minutes, per locked Phase 0 design
 
 /**
@@ -19,6 +20,15 @@ export function hashToken(rawToken: string): string {
 
 export function verificationTokenExpiry(): Date {
   return new Date(Date.now() + VERIFICATION_TOKEN_TTL_MS);
+}
+
+export function getVerificationResendRetryAfter(
+  lastSentAt: Date | null,
+  now = Date.now()
+): number | null {
+  if (!lastSentAt) return null;
+  const remainingMs = lastSentAt.getTime() + VERIFICATION_RESEND_COOLDOWN_MS - now;
+  return remainingMs > 0 ? Math.ceil(remainingMs / 1000) : null;
 }
 
 export function resetTokenExpiry(): Date {

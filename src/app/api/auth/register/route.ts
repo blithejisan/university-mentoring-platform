@@ -3,6 +3,7 @@ import { ZodError } from "zod";
 import type { User } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth/password";
+import { canClaimImportedStudent } from "@/lib/auth/registration";
 import { generateRawToken, hashToken, verificationTokenExpiry } from "@/lib/auth/tokens";
 import { sendEmail } from "@/lib/email/sender";
 import { renderEmailTemplate } from "@/lib/email/templates";
@@ -50,20 +51,21 @@ export async function POST(request: NextRequest) {
     where: { universityIdNumber },
     include: { studentProfile: true },
   });
-  const canClaimImportedStudent = Boolean(
-    input.role === "STUDENT" &&
-    existing?.role === "STUDENT" &&
-    !existing.isRegistered &&
-    existing.status === "PENDING_VERIFICATION" &&
-    existing.emailVerifiedAt === null &&
-    existing.studentProfile?.departmentId === input.departmentId
-  );
-  if (existing && !canClaimImportedStudent) {
+  const canClaimImported = canClaimImportedStudent(input.role, existing, input.departmentId);
+  if (existing && !canClaimImported) {
+    const canResendVerification =
+      existing.isRegistered &&
+      existing.role === "STUDENT" &&
+      existing.status === "PENDING_VERIFICATION" &&
+      existing.emailVerifiedAt === null;
     return NextResponse.json(
       {
-        error: existing.isRegistered
-          ? "This Student/University ID has already been registered and claimed."
+        error: canResendVerification
+          ? "This Student/University ID has already been registered. If you have not verified your email, request a new verification link."
+          : existing.isRegistered
+            ? "This Student/University ID has already been registered and claimed."
           : "This Student/University ID is not available for registration in the selected department.",
+        ...(canResendVerification ? { code: "STUDENT_EMAIL_UNVERIFIED" } : {}),
       },
       { status: 409 }
     );
@@ -90,7 +92,7 @@ export async function POST(request: NextRequest) {
   let user: User | null;
   try {
     user = await prisma.$transaction(async (tx) => {
-      if (existing && canClaimImportedStudent && input.role === "STUDENT") {
+      if (existing && canClaimImported && input.role === "STUDENT") {
         const claim = await tx.user.updateMany({
           where: {
             id: existing.id,

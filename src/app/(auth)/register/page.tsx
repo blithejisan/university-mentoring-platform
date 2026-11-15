@@ -23,6 +23,7 @@ export default function RegisterPage() {
   const [applyAsCR, setApplyAsCR] = useState(false);
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [canResendVerification, setCanResendVerification] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -36,6 +37,7 @@ export default function RegisterPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setCanResendVerification(false);
     setMessage(null);
     setLoading(true);
 
@@ -61,6 +63,7 @@ export default function RegisterPage() {
 
       if (!res.ok) {
         setError(data.error ?? "Registration failed.");
+        setCanResendVerification(data.code === "STUDENT_EMAIL_UNVERIFIED");
         return;
       }
       setMessage(data.message);
@@ -214,6 +217,14 @@ export default function RegisterPage() {
           )}
 
           {error && <p className="text-sm text-destructive">{error}</p>}
+          {canResendVerification && (
+            <Link
+              href="/resend-verification"
+              className="text-sm text-primary hover:underline"
+            >
+              Request a new verification email
+            </Link>
+          )}
 
           <Button type="submit" disabled={loading} className="mt-2">
             {loading ? "Registering…" : "Register"}

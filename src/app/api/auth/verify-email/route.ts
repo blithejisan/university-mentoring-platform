@@ -51,6 +51,7 @@ export async function POST(request: NextRequest) {
 
   const now = new Date();
   const claimed = await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "users" WHERE "id" = ${record.userId} FOR UPDATE`;
     const result = await tx.emailVerificationToken.updateMany({
       where: { id: record.id, usedAt: null, expiresAt: { gt: now } },
       data: { usedAt: now },
