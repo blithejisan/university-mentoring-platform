@@ -1,5 +1,6 @@
 import Image from "next/image";
 import type { LucideIcon } from "lucide-react";
+import { DashboardClock } from "@/components/dashboard-clock";
 
 type DashboardMetric = {
   label: string;
@@ -22,6 +23,13 @@ const metricTone: Record<DashboardMetric["tone"], string> = {
   violet: "border-violet-300/20 bg-violet-300/10 text-violet-200",
   teal: "border-emerald-300/20 bg-emerald-300/10 text-emerald-200",
   amber: "border-amber-300/20 bg-amber-300/10 text-amber-200",
+};
+
+const metricSparkline: Record<DashboardMetric["tone"], string> = {
+  cyan: "text-cyan-300/50",
+  violet: "text-violet-300/50",
+  teal: "text-emerald-300/50",
+  amber: "text-amber-300/50",
 };
 
 function getInitials(name: string | null, role: string) {
@@ -54,37 +62,43 @@ export function DashboardOverview({
           className="absolute inset-0 -z-20 object-cover object-[center_58%]"
         />
         <div aria-hidden="true" className="dashboard-welcome-overlay absolute inset-0 -z-10" />
-        <div className="flex w-full items-center gap-4 sm:gap-6">
-          <div
-            aria-hidden="true"
-            className="flex size-14 shrink-0 items-center justify-center rounded-full border border-cyan-100/35 bg-slate-950/50 text-lg font-semibold text-cyan-50 shadow-lg shadow-slate-950/30 ring-4 ring-cyan-100/10 backdrop-blur-md sm:size-[4.5rem] sm:text-xl"
-          >
-            {getInitials(name, role)}
-          </div>
-          <div className="max-w-3xl">
-            <p className="text-sm font-medium text-cyan-100/90">Welcome back,</p>
-            <h1 className="mt-0.5 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-              {name?.trim() || role}
-            </h1>
-            <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-slate-100/90 sm:text-base">
-              {description}
-            </p>
-            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-medium text-slate-100/90">
-              {universityName && (
-                <span className="rounded-full border border-white/15 bg-slate-950/35 px-3 py-1 backdrop-blur">
-                  {universityName}
+        <div className="flex w-full flex-col items-start gap-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-center gap-4 sm:gap-6">
+            <div className="relative shrink-0">
+              <div
+                aria-hidden="true"
+                className="flex size-14 items-center justify-center rounded-full border border-teal-200/30 bg-teal-500/15 text-lg font-semibold text-teal-300 shadow-[0_0_24px_rgba(20,184,166,0.18)] ring-4 ring-teal-500/20 backdrop-blur-md sm:size-[4.5rem] sm:text-xl"
+              >
+                {getInitials(name, role)}
+              </div>
+              <span aria-label="Online" className="absolute bottom-0 right-0 size-3 rounded-full border-2 border-slate-900 bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.75)]" />
+            </div>
+            <div className="min-w-0 max-w-3xl">
+              <p className="text-sm font-medium text-cyan-100/90">Welcome back,</p>
+              <h1 className="mt-0.5 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+                {name?.trim() || role} <span aria-hidden="true">👋</span>
+              </h1>
+              <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-slate-100/90 sm:text-base">
+                {description}
+              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-medium text-slate-100/90">
+                {universityName && (
+                  <span className="rounded-full border border-teal-200/25 bg-teal-950/35 px-3 py-1 text-teal-100 backdrop-blur">
+                    {universityName}
+                  </span>
+                )}
+                {departmentName && (
+                  <span className="rounded-full border border-white/15 bg-slate-950/35 px-3 py-1 text-slate-100 backdrop-blur">
+                    {departmentName}
+                  </span>
+                )}
+                <span className="rounded-full border border-cyan-100/20 bg-cyan-300/10 px-3 py-1 capitalize text-cyan-50">
+                  {roleLabel} workspace
                 </span>
-              )}
-              {departmentName && (
-                <span className="rounded-full border border-white/15 bg-slate-950/35 px-3 py-1 backdrop-blur">
-                  {departmentName}
-                </span>
-              )}
-              <span className="rounded-full border border-cyan-100/20 bg-cyan-300/10 px-3 py-1 capitalize text-cyan-50">
-                {roleLabel} workspace
-              </span>
+              </div>
             </div>
           </div>
+          <DashboardClock initialTime={new Date().toISOString()} />
         </div>
       </div>
 
@@ -100,12 +114,12 @@ export function DashboardOverview({
         {metrics.map(({ label, value, Icon, tone }) => (
           <div
             key={label}
-            className="dashboard-metric flex min-w-0 items-center gap-3 rounded-xl border border-border/80 bg-card/85 p-3.5 shadow-sm backdrop-blur-md transition-colors sm:gap-4 sm:p-4"
+            className="dashboard-metric relative flex min-w-0 items-center gap-3 overflow-hidden rounded-xl border border-border/80 bg-card/85 p-3.5 shadow-sm backdrop-blur-md transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-teal-400/30 hover:shadow-[0_12px_30px_rgba(2,8,18,0.2)] active:scale-[0.98] sm:gap-4 sm:p-4"
           >
-            <span className={`flex size-10 shrink-0 items-center justify-center rounded-full border sm:size-12 ${metricTone[tone]}`}>
+            <span className={`relative z-10 flex size-10 shrink-0 items-center justify-center rounded-full border sm:size-12 ${metricTone[tone]}`}>
               <Icon aria-hidden="true" className="size-5 sm:size-6" />
             </span>
-            <div className="min-w-0">
+            <div className="relative z-10 min-w-0">
               <p className="text-xl font-semibold leading-none tracking-tight text-slate-50 sm:text-2xl">
                 {value.toLocaleString()}
               </p>
@@ -113,6 +127,10 @@ export function DashboardOverview({
                 {label}
               </p>
             </div>
+            <svg aria-hidden="true" className={`pointer-events-none absolute -bottom-1 -right-1 h-12 w-24 ${metricSparkline[tone]}`} viewBox="0 0 96 48" fill="none">
+              <path d="M1 39C12 39 13 27 23 30C32 33 33 19 43 23C53 27 57 33 66 21C75 9 78 14 84 19C89 23 92 11 96 8V48H1V39Z" fill="currentColor" fillOpacity=".08" />
+              <path d="M1 39C12 39 13 27 23 30C32 33 33 19 43 23C53 27 57 33 66 21C75 9 78 14 84 19C89 23 92 11 96 8" stroke="currentColor" strokeWidth="1.5" />
+            </svg>
           </div>
         ))}
       </div>

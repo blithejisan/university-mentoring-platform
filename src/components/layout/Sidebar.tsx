@@ -148,9 +148,9 @@ export function Sidebar() {
                 target={external ? "_blank" : undefined}
                 rel={external ? "noopener noreferrer" : undefined}
                 aria-current={active ? "page" : undefined}
-                className={`group flex min-h-10 shrink-0 items-center gap-3 rounded-lg border-l-2 px-3 py-2 text-sm font-medium transition-colors duration-200 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 md:w-full ${
+                className={`group relative flex min-h-10 shrink-0 items-center gap-3 rounded-lg border-l-2 px-3 py-2 text-sm font-medium transition-all duration-200 ease-out hover:translate-x-1 hover:bg-white/[0.04] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 md:w-full ${
                   active
-                    ? "border-l-accent bg-accent/10 text-cyan-100 shadow-[inset_0_0_18px_rgba(38,205,210,0.06)]"
+                    ? "border border-teal-500/30 border-l-teal-300 bg-teal-500/10 text-teal-100 shadow-[inset_0_0_18px_rgba(38,205,210,0.08),0_0_18px_rgba(20,184,166,0.08)] before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:bg-teal-200 before:shadow-[0_0_10px_rgba(45,212,191,0.9)] before:content-['']"
                     : "border-l-transparent text-slate-300 hover:border-l-accent/50 hover:bg-surface-elevated/70 hover:text-slate-100"
                 }`}
               >
