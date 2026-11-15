@@ -2,38 +2,48 @@
 @import "tw-animate-css";
 
 :root {
-  --radius: 0.625rem;
+  --radius: 0.75rem;
 
-  --background: #0a1220;
-  --foreground: #e5edf6;
+  --background: #08121f;
+  --foreground: #f1f5fa;
 
-  --card: #111d2c;
+  --card: #111f31;
   --card-foreground: #f1f5f9;
 
-  --primary: #0d8490;
+  --surface-elevated: #15273a;
+  --surface-navigation: #0b1725;
+
+  --primary: #1499a8;
   --primary-foreground: #ffffff;
 
-  --secondary: #1b2a3b;
+  --secondary: #192b3e;
   --secondary-foreground: #e2e8f0;
 
-  --muted: #172638;
-  --muted-foreground: #a9bacd;
+  --muted: #17283b;
+  --muted-foreground: #8999ab;
 
-  --accent: #22b8c2;
-  --accent-foreground: #082f36;
+  --accent: #26cdd2;
+  --accent-foreground: #062b34;
 
-  --destructive: #ef4444;
+  --destructive: #ef5b64;
   --destructive-foreground: #ffffff;
 
-  --success: #16806a;
+  --success: #26c993;
   --success-foreground: #ffffff;
 
-  --warning: #f59e0b;
+  --warning: #f0ac3c;
   --warning-foreground: #ffffff;
 
-  --border: #2a3a4e;
-  --input: #40546b;
-  --ring: #44c7cf;
+  --border: #293c50;
+  --input: #40566d;
+  --ring: #26cdd2;
+
+  --ambient-gradient:
+    radial-gradient(ellipse at 68% 0%, rgb(18 89 125 / 14%), transparent 42%),
+    radial-gradient(ellipse at 10% 18%, rgb(17 125 129 / 10%), transparent 34%),
+    linear-gradient(150deg, #08121f 0%, #0a1524 54%, #08111d 100%);
+  --surface-shadow: 0 12px 30px rgb(2 8 18 / 22%);
+  --accent-shadow: 0 0 18px rgb(38 205 210 / 10%);
 }
 
 :root.light {
@@ -69,6 +79,12 @@
   --border: #cbd5e1;
   --input: #cbd5e1;
   --ring: #0891b2;
+
+  --surface-elevated: #ffffff;
+  --surface-navigation: #f8fafc;
+  --ambient-gradient: none;
+  --surface-shadow: 0 8px 24px rgb(15 23 42 / 8%);
+  --accent-shadow: 0 0 14px rgb(8 145 178 / 8%);
 }
 
 @theme inline {
@@ -98,8 +114,13 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-surface-navigation: var(--surface-navigation);
 
   --font-sans: Inter, "Segoe UI", sans-serif;
+
+  --shadow-card: var(--surface-shadow);
+  --shadow-accent: var(--accent-shadow);
 }
 
 body {
@@ -116,9 +137,14 @@ body {
 body.theme-obsidian {
   position: relative;
   isolation: isolate;
-  background: var(--color-background);
+  background-color: var(--color-background);
   color: var(--color-foreground);
   color-scheme: dark;
+}
+
+.portal-shell {
+  background-image: var(--ambient-gradient);
+  background-repeat: no-repeat;
 }
 
 html {
@@ -178,16 +204,16 @@ html {
 :root.light .theme-obsidian [class~="bg-slate-900/75"],
 :root.light .theme-obsidian [class~="bg-slate-900/70"],
 :root.light .theme-obsidian [class~="bg-slate-900/50"] {
-  background-color: #ffffff;
+  background-color: var(--surface-navigation);
 }
 
 :root.light .theme-obsidian [class~="bg-slate-900"],
 :root.light .theme-obsidian [class~="bg-slate-800"] {
-  background-color: #f1f5f9;
+  background-color: var(--surface-elevated);
 }
 
 :root.light .theme-obsidian [class~="bg-slate-700"] {
-  background-color: #e2e8f0;
+  background-color: var(--secondary);
 }
 
 :root.light .theme-obsidian [class~="text-slate-50"],
@@ -204,7 +230,7 @@ html {
 }
 
 :root.light .theme-obsidian [class~="text-slate-400"] {
-  color: #475569;
+  color: var(--muted-foreground);
 }
 
 :root.light .theme-obsidian [class~="text-slate-500"] {
@@ -237,7 +263,7 @@ html {
 :root.light .theme-obsidian [class~="border-slate-700"],
 :root.light .theme-obsidian [class~="border-slate-700/70"],
 :root.light .theme-obsidian [class~="border-slate-800"] {
-  border-color: #cbd5e1;
+  border-color: var(--border);
 }
 
 :root.light .theme-obsidian [data-slot="card"] {
@@ -264,59 +290,80 @@ html {
 
 /* Keep legacy utility-based screens coherent as shared components adopt tokens. */
 :root.dark .theme-obsidian [class~="bg-white"] {
-  background-color: #142235;
+  background-color: var(--surface-elevated);
 }
 
 :root.dark .theme-obsidian [class~="bg-white/90"] {
-  background-color: rgb(20 34 53 / 90%);
+  background-color: color-mix(in srgb, var(--surface-elevated) 92%, transparent);
 }
 
 :root.dark .theme-obsidian [class~="bg-white/80"] {
-  background-color: rgb(20 34 53 / 80%);
+  background-color: color-mix(in srgb, var(--surface-elevated) 84%, transparent);
 }
 
 :root.dark .theme-obsidian [class~="bg-white/70"] {
-  background-color: rgb(20 34 53 / 70%);
+  background-color: color-mix(in srgb, var(--surface-elevated) 76%, transparent);
 }
 
 :root.dark .theme-obsidian [class~="bg-slate-50"] {
-  background-color: #0d1929;
+  background-color: var(--surface-navigation);
 }
 
 :root.dark .theme-obsidian [class~="bg-slate-100"] {
-  background-color: #172638;
+  background-color: var(--secondary);
 }
 
 :root.dark .theme-obsidian [class~="bg-slate-200"] {
-  background-color: #22354a;
+  background-color: var(--border);
 }
 
 :root.dark .theme-obsidian :is(
   [class~="bg-emerald-50"],
+  [class~="bg-emerald-100"],
   [class~="bg-green-50"],
-  [class~="bg-lime-50"]
+  [class~="bg-green-100"],
+  [class~="bg-lime-50"],
+  [class~="bg-lime-100"]
 ) {
-  background-color: rgb(16 120 91 / 17%);
+  background-color: color-mix(in srgb, var(--success) 16%, transparent);
 }
 
 :root.dark .theme-obsidian :is(
   [class~="bg-cyan-50"],
+  [class~="bg-cyan-100"],
   [class~="bg-sky-50"],
-  [class~="bg-blue-50"]
+  [class~="bg-sky-100"],
+  [class~="bg-blue-50"],
+  [class~="bg-blue-100"]
 ) {
-  background-color: rgb(8 125 153 / 18%);
+  background-color: color-mix(in srgb, var(--primary) 18%, transparent);
 }
 
-:root.dark .theme-obsidian :is([class~="bg-amber-50"], [class~="bg-yellow-50"]) {
-  background-color: rgb(161 98 7 / 18%);
+:root.dark .theme-obsidian :is(
+  [class~="bg-amber-50"],
+  [class~="bg-amber-100"],
+  [class~="bg-yellow-50"],
+  [class~="bg-yellow-100"]
+) {
+  background-color: color-mix(in srgb, var(--warning) 16%, transparent);
 }
 
-:root.dark .theme-obsidian :is([class~="bg-red-50"], [class~="bg-rose-50"]) {
-  background-color: rgb(185 28 28 / 17%);
+:root.dark .theme-obsidian :is(
+  [class~="bg-red-50"],
+  [class~="bg-red-100"],
+  [class~="bg-rose-50"],
+  [class~="bg-rose-100"]
+) {
+  background-color: color-mix(in srgb, var(--destructive) 15%, transparent);
 }
 
-:root.dark .theme-obsidian :is([class~="bg-indigo-50"], [class~="bg-violet-50"]) {
-  background-color: rgb(91 70 170 / 18%);
+:root.dark .theme-obsidian :is(
+  [class~="bg-indigo-50"],
+  [class~="bg-indigo-100"],
+  [class~="bg-violet-50"],
+  [class~="bg-violet-100"]
+) {
+  background-color: rgb(155 112 232 / 18%);
 }
 
 :root.dark .theme-obsidian [class~="text-slate-900"] {
@@ -334,22 +381,22 @@ html {
 
 :root.dark .theme-obsidian [class~="text-slate-500"],
 :root.dark .theme-obsidian [class~="text-slate-400"] {
-  color: #a8b6c8;
+  color: var(--muted-foreground);
 }
 
 :root.dark .theme-obsidian [class~="text-primary"] {
-  color: #67e8f9;
+  color: var(--accent);
 }
 
 :root.dark .theme-obsidian [class~="text-success"] {
-  color: #6ee7b7;
+  color: var(--success);
 }
 
 :root.dark .theme-obsidian [class~="text-emerald-600"],
 :root.dark .theme-obsidian [class~="text-emerald-700"],
 :root.dark .theme-obsidian [class~="text-emerald-800"] {
-  color: #6ee7b7;
-  text-shadow: 0 0 8px rgb(16 185 129 / 14%);
+  color: #71e2b9;
+  text-shadow: 0 0 8px color-mix(in srgb, var(--success) 14%, transparent);
 }
 
 :root.dark .theme-obsidian :is(
@@ -396,15 +443,15 @@ html {
   [class~="border-red-100"],
   [class~="border-red-200"]
 ) {
-  border-color: rgb(117 148 169 / 28%);
+  border-color: color-mix(in srgb, var(--border) 76%, transparent);
 }
 
 :root.dark .theme-obsidian [class~="bg-[#edf5ee]"] {
-  background-color: rgb(16 120 91 / 17%);
+  background-color: color-mix(in srgb, var(--success) 16%, transparent);
 }
 
 :root.dark .theme-obsidian [class~="border-[#d4e3d7]"] {
-  border-color: rgb(117 148 169 / 28%);
+  border-color: color-mix(in srgb, var(--border) 76%, transparent);
 }
 
 :root.dark .theme-obsidian .lab-generator-link {
@@ -430,25 +477,26 @@ html {
 :root.dark .theme-obsidian [class~="border-slate-100"],
 :root.dark .theme-obsidian [class~="border-slate-200"],
 :root.dark .theme-obsidian [class~="border-slate-300"] {
-  border-color: #334155;
+  border-color: var(--border);
 }
 
 :root.dark .theme-obsidian [class~="hover:bg-slate-50"]:hover,
 :root.dark .theme-obsidian [class~="hover:bg-slate-100"]:hover,
 :root.dark .theme-obsidian [class~="hover:bg-white"]:hover {
-  background-color: #334155;
+  background-color: var(--surface-elevated);
 }
 
 :root.dark .theme-obsidian [data-slot="card"] {
-  border-color: rgb(67 88 110 / 58%);
-  background-color: rgb(17 29 44 / 92%);
+  border-color: var(--border);
+  background-color: rgb(17 31 49 / 92%);
   color: #f1f5f9;
   backdrop-filter: blur(12px);
+  box-shadow: var(--surface-shadow);
 }
 
 :root.dark .theme-obsidian [data-slot="card"]:hover {
-  border-color: rgb(68 199 207 / 34%);
-  box-shadow: 0 10px 28px rgb(2 6 23 / 20%), 0 0 14px rgb(34 211 238 / 6%);
+  border-color: color-mix(in srgb, var(--accent) 38%, var(--border));
+  box-shadow: var(--surface-shadow), var(--accent-shadow);
 }
 
 :root.dark .theme-obsidian [data-slot="card-title"] {
@@ -467,16 +515,39 @@ html {
 }
 
 :root.dark .theme-obsidian table {
-  color: #e2e8f0;
+  border-color: var(--border);
+  color: var(--foreground);
+  border-collapse: separate;
+  border-spacing: 0;
 }
 
 :root.dark .theme-obsidian th {
-  color: #cbd5e1;
+  color: var(--muted-foreground);
 }
 
 :root.dark .theme-obsidian td,
 :root.dark .theme-obsidian th {
-  border-color: #334155;
+  border-color: var(--border);
+}
+
+:root.dark .theme-obsidian thead {
+  background-color: color-mix(in srgb, var(--surface-elevated) 82%, transparent);
+}
+
+:root.dark .theme-obsidian tbody tr {
+  transition: background-color 160ms ease;
+}
+
+:root.dark .theme-obsidian tbody tr:hover {
+  background-color: color-mix(in srgb, var(--accent) 5%, transparent);
+}
+
+.theme-obsidian :is(input, textarea, select, [role="combobox"]) {
+  transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+}
+
+.theme-obsidian :is(button, a) {
+  -webkit-tap-highlight-color: transparent;
 }
 
 .page-enter {
@@ -651,7 +722,7 @@ select:focus-visible,
   inset: 0;
   overflow: hidden;
   pointer-events: none;
-  opacity: 0.07;
+  opacity: 0;
 }
 
 .dashboard-welcome {
@@ -660,13 +731,13 @@ select:focus-visible,
 
 .dashboard-welcome-overlay {
   background:
-    linear-gradient(90deg, rgb(7 17 30 / 94%) 0%, rgb(7 17 30 / 79%) 42%, rgb(7 17 30 / 36%) 100%),
-    linear-gradient(0deg, rgb(7 17 30 / 28%), transparent 75%);
+    linear-gradient(100deg, rgb(6 25 36 / 94%) 0%, rgb(8 31 45 / 82%) 42%, rgb(9 30 43 / 44%) 100%),
+    linear-gradient(0deg, rgb(7 17 30 / 30%), transparent 75%);
 }
 
 .dashboard-metric:hover {
-  border-color: rgb(68 199 207 / 35%);
-  background-color: rgb(20 34 53 / 88%);
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+  background-color: color-mix(in srgb, var(--surface-elevated) 78%, transparent);
 }
 
 .portal-navbar {
@@ -689,7 +760,7 @@ select:focus-visible,
 
   .dashboard-welcome-overlay {
     background:
-      linear-gradient(90deg, rgb(7 17 30 / 91%), rgb(7 17 30 / 65%)),
+      linear-gradient(100deg, rgb(6 25 36 / 93%), rgb(8 31 45 / 72%)),
       linear-gradient(0deg, rgb(7 17 30 / 35%), transparent 80%);
   }
 }

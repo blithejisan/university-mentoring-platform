@@ -38,7 +38,7 @@ export function ModalPortal({ children, labelledBy }: ModalPortalProps) {
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/70 p-4 text-slate-100 backdrop-blur-sm [&_input[data-slot=input]]:border-slate-700 [&_input[data-slot=input]]:bg-slate-800 [&_input[data-slot=input]]:text-slate-100 [&_input[data-slot=input]]:placeholder:text-slate-400 [&_label]:text-slate-200 [&_select]:border-slate-700 [&_select]:bg-slate-800 [&_select]:text-slate-100 [&_textarea]:border-slate-700 [&_textarea]:bg-slate-800 [&_textarea]:text-slate-100 [&_textarea]:placeholder:text-slate-400 [&_.text-muted-foreground]:text-slate-400"
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-background/75 p-4 text-foreground backdrop-blur-sm [&_input[data-slot=input]]:border-border [&_input[data-slot=input]]:bg-surface-elevated [&_input[data-slot=input]]:text-foreground [&_input[data-slot=input]]:placeholder:text-muted-foreground [&_label]:text-foreground [&_select]:border-border [&_select]:bg-surface-elevated [&_select]:text-foreground [&_textarea]:border-border [&_textarea]:bg-surface-elevated [&_textarea]:text-foreground [&_textarea]:placeholder:text-muted-foreground [&_.text-muted-foreground]:text-muted-foreground"
       role="dialog"
       aria-modal="true"
       aria-labelledby={labelledBy}

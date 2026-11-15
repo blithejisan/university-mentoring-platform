@@ -100,7 +100,7 @@ export function DashboardOverview({
         {metrics.map(({ label, value, Icon, tone }) => (
           <div
             key={label}
-            className="dashboard-metric flex min-w-0 items-center gap-3 rounded-xl border border-slate-700/70 bg-slate-900/70 p-3.5 shadow-sm backdrop-blur-md transition-colors sm:gap-4 sm:p-4"
+            className="dashboard-metric flex min-w-0 items-center gap-3 rounded-xl border border-border/80 bg-card/85 p-3.5 shadow-sm backdrop-blur-md transition-colors sm:gap-4 sm:p-4"
           >
             <span className={`flex size-10 shrink-0 items-center justify-center rounded-full border sm:size-12 ${metricTone[tone]}`}>
               <Icon aria-hidden="true" className="size-5 sm:size-6" />

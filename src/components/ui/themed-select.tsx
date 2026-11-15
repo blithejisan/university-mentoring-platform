@@ -90,7 +90,7 @@ export function ThemedSelect({
         <SelectPrimitive.Content
           position="popper"
           sideOffset={4}
-          className="z-[100] max-h-80 min-w-[var(--radix-select-trigger-width)] overflow-hidden rounded-lg border border-slate-800 bg-slate-900 text-slate-100 shadow-xl"
+          className="z-[100] max-h-80 min-w-[var(--radix-select-trigger-width)] overflow-hidden rounded-lg border border-border bg-surface-elevated text-foreground shadow-xl"
         >
           <SelectPrimitive.Viewport className="max-h-80 overflow-y-auto p-1">
             {options.map((option, index) => {
@@ -101,7 +101,7 @@ export function ThemedSelect({
                   key={option.key ?? `${optionValue}-${index}`}
                   value={optionValue}
                   disabled={option.props.disabled}
-                  className="relative flex min-h-9 cursor-default select-none items-center rounded-md px-3 py-2 pr-8 text-sm outline-none data-[highlighted]:bg-slate-800 data-[highlighted]:text-slate-50 data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+                  className="relative flex min-h-9 cursor-default select-none items-center rounded-md px-3 py-2 pr-8 text-sm outline-none data-[highlighted]:bg-secondary data-[highlighted]:text-secondary-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
                 >
                   <SelectPrimitive.ItemText>{option.props.children}</SelectPrimitive.ItemText>
                   <SelectPrimitive.ItemIndicator className="absolute right-2 flex items-center">

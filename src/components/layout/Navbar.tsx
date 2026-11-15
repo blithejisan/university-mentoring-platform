@@ -20,17 +20,17 @@ export function Navbar() {
       : "/";
 
   return (
-    <header className="portal-navbar sticky top-0 z-50 w-full shrink-0 border-b border-slate-700/60 bg-slate-950/80 px-3 py-2 shadow-sm shadow-slate-950/20 backdrop-blur-xl transition-colors duration-200 sm:px-5 lg:px-7">
+    <header className="portal-navbar sticky top-0 z-50 w-full shrink-0 border-b border-border/70 bg-surface-navigation/95 px-3 py-2 shadow-card backdrop-blur-xl transition-colors duration-200 sm:px-5 lg:px-7">
       <div className="flex min-h-12 items-center justify-between gap-2 sm:gap-4">
         <Link
           href={homeHref}
           className="group flex min-w-0 items-center gap-2 sm:gap-3"
         >
-          <div className="flex shrink-0 items-center gap-1.5 rounded-xl border border-slate-700/80 bg-slate-800/70 p-1 shadow-sm transition-colors group-hover:border-cyan-500/50 sm:gap-2 sm:p-1.5">
+          <div className="flex shrink-0 items-center gap-1.5 rounded-xl border border-border/80 bg-surface-elevated/80 p-1 shadow-sm transition-colors group-hover:border-accent/50 sm:gap-2 sm:p-1.5">
             <div className="relative size-7 sm:size-9">
               <Image src="/gub-logo.png" alt="GUB logo" fill sizes="36px" className="object-contain" />
             </div>
-            <div className="h-5 w-px bg-slate-600" />
+            <div className="h-5 w-px bg-border" />
             <div className="relative size-7 sm:size-9">
               <Image src="/ads-logo.png" alt="AI & Data Science logo" fill sizes="36px" className="object-contain" />
             </div>
@@ -56,7 +56,7 @@ export function Navbar() {
                 className={`inline-flex h-9 items-center gap-2 whitespace-nowrap rounded-md border px-2.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 sm:px-3 sm:text-sm ${
                   pathname === "/profile"
                     ? "border-cyan-400/30 bg-cyan-400/10 text-cyan-100"
-                    : "border-slate-700 bg-slate-800 text-slate-200 hover:border-cyan-500/50 hover:bg-slate-700 hover:text-cyan-100"
+                    : "border-border bg-surface-elevated text-slate-200 hover:border-accent/50 hover:bg-secondary hover:text-cyan-100"
                 }`}
               >
                 <UserRound aria-hidden="true" className="size-4" />
@@ -64,7 +64,7 @@ export function Navbar() {
               </Link>
               <LogoutButton
                 showIcon
-                className="h-9 rounded-md border-slate-700 bg-slate-800 px-2.5 text-xs font-semibold text-slate-200 shadow-none transition-colors hover:border-cyan-500/50 hover:bg-slate-700 hover:text-cyan-100 sm:px-3 sm:text-sm"
+                className="h-9 rounded-md border-border bg-surface-elevated px-2.5 text-xs font-semibold text-slate-200 shadow-none transition-colors hover:border-accent/50 hover:bg-secondary hover:text-cyan-100 sm:px-3 sm:text-sm"
               />
             </>
           )}

@@ -122,7 +122,7 @@ export function Sidebar() {
     { label: "Profile & Security", href: "/profile", icon: UserRound, group: "Account" },
   ];
   return (
-    <aside className="portal-sidebar z-20 flex w-full shrink-0 flex-col border-b border-slate-700/70 bg-slate-950/55 backdrop-blur-xl md:sticky md:top-16 md:h-[calc(100vh-4rem)] md:w-60 md:self-start md:overflow-y-auto md:border-b-0 md:border-r lg:w-64">
+    <aside className="portal-sidebar z-20 flex w-full shrink-0 flex-col border-b border-border/70 bg-surface-navigation/85 backdrop-blur-xl md:sticky md:top-16 md:h-[calc(100vh-4rem)] md:w-60 md:self-start md:overflow-y-auto md:border-b-0 md:border-r">
       <nav aria-label="Primary navigation" className="flex gap-1 overflow-x-auto p-2.5 md:flex-1 md:flex-col md:gap-1 md:p-3">
         {links.map(({ label, href, icon: Icon, external, group }, index) => {
           const showGroup = index === 0 || links[index - 1].group !== group;
@@ -150,8 +150,8 @@ export function Sidebar() {
                 aria-current={active ? "page" : undefined}
                 className={`group flex min-h-10 shrink-0 items-center gap-3 rounded-lg border-l-2 px-3 py-2 text-sm font-medium transition-colors duration-200 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 md:w-full ${
                   active
-                    ? "border-l-cyan-300 bg-cyan-300/10 text-cyan-100"
-                    : "border-l-transparent text-slate-300 hover:border-l-cyan-400/50 hover:bg-slate-800/70 hover:text-slate-100"
+                    ? "border-l-accent bg-accent/10 text-cyan-100 shadow-[inset_0_0_18px_rgba(38,205,210,0.06)]"
+                    : "border-l-transparent text-slate-300 hover:border-l-accent/50 hover:bg-surface-elevated/70 hover:text-slate-100"
                 }`}
               >
                 <Icon aria-hidden="true" className={`size-4 shrink-0 ${active ? "text-cyan-200" : "text-slate-400 group-hover:text-cyan-200"}`} />
@@ -161,7 +161,7 @@ export function Sidebar() {
           );
         })}
       </nav>
-      <div className="mt-auto flex shrink-0 items-center justify-between gap-3 border-t border-slate-700/70 p-3 md:flex-col md:items-stretch md:p-4">
+      <div className="mt-auto flex shrink-0 items-center justify-between gap-3 border-t border-border/70 p-3 md:flex-col md:items-stretch md:p-4">
         <ThemeToggle />
         <p
           data-sidebar-brand
