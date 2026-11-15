@@ -59,13 +59,23 @@ export default async function MentorDashboardPage() {
       }),
       prisma.studentProfile.count({
         where: {
-          user: { status: "ACTIVE" },
-          studentBatches: {
-            some: {
-              leftAt: null,
-              batch: { mentorBatches: { some: { mentorId: session.sub } } },
+          archivedAt: null,
+          user: { role: "STUDENT", status: "ACTIVE" },
+          OR: [
+            {
+              studentBatches: {
+                some: {
+                  leftAt: null,
+                  batch: { mentorBatches: { some: { mentorId: session.sub } } },
+                },
+              },
             },
-          },
+            {
+              enrolledBatch: {
+                is: { mentorBatches: { some: { mentorId: session.sub } } },
+              },
+            },
+          ],
         },
       }),
       prisma.attendanceSession.count({
@@ -187,7 +197,7 @@ export default async function MentorDashboardPage() {
         description="Manage mentoring sessions, stay connected with your students, and follow their progress."
         metrics={[
           { label: "Assigned batches", value: assignedBatches.length, Icon: Layers3, tone: "violet", href: "/mentor/batches" },
-          { label: "Active students", value: activeStudentsCount, Icon: UsersRound, tone: "cyan", href: "/mentor/batches" },
+          { label: "Active students", value: activeStudentsCount, Icon: UsersRound, tone: "cyan", href: "/mentor/students" },
           { label: "Upcoming sessions", value: upcomingSessionsCount, Icon: CalendarDays, tone: "teal", href: "/mentor/sessions" },
         ]}
       />

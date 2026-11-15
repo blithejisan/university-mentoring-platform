@@ -8,7 +8,10 @@ import { Sidebar } from "@/components/layout/Sidebar";
 export function PortalShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const hasRolePath = /^\/(admin|moderator|mentor|student)(\/|$)/.test(pathname);
-  const showSidebar = (hasRolePath && !pathname.startsWith("/pending-approval")) || pathname === "/profile";
+  const showSidebar =
+    (hasRolePath && !pathname.startsWith("/pending-approval")) ||
+    pathname === "/profile" ||
+    pathname === "/student-identify";
 
   return (
     <div className="portal-shell flex min-h-screen w-full flex-col bg-background text-foreground">

@@ -12,9 +12,9 @@ import {
   FileText,
   LayoutDashboard,
   Layers3,
-  MessageSquareText,
   Megaphone,
   MessageSquare,
+  Search,
   Star,
   UserCheck,
   UserRound,
@@ -47,6 +47,7 @@ const roleItems: Record<string, SidebarItem[]> = {
     { label: "CR Management", href: "/admin/cr-management", icon: UserCheck, group: "Management" },
     { label: "My Batch", href: "/admin/my-batch", icon: Megaphone, group: "Management" },
     { label: "Mentor Applications", href: "/admin/mentors/pending", icon: UserCheck, group: "Quick access" },
+    { label: "Student Identify", href: "/student-identify", icon: Search, group: "Quick access" },
     { label: "Batch Performance", href: "/admin/dashboard#batch-performance", icon: BarChart3, group: "Quick access" },
     { label: "Notice Management", href: "/admin/dashboard#notices", icon: BellRing, group: "Quick access" },
   ],
@@ -58,6 +59,7 @@ const roleItems: Record<string, SidebarItem[]> = {
     { label: "CR Management", href: "/moderator/cr-management", icon: UserCheck, group: "Management" },
     { label: "Mentor Applications", href: "/moderator/mentors/pending", icon: UserCheck, group: "Quick access" },
     { label: "Coordination Hub", href: "/moderator/coordination", icon: MessageSquare, group: "Quick access" },
+    { label: "Student Identify", href: "/student-identify", icon: Search, group: "Quick access" },
     { label: "Batch Performance", href: "/moderator/dashboard#batch-performance", icon: BarChart3, group: "Quick access" },
     { label: "Notice Management", href: "/moderator/dashboard#notices", icon: BellRing, group: "Quick access" },
   ],
@@ -68,9 +70,10 @@ const roleItems: Record<string, SidebarItem[]> = {
     { label: "Mentors", href: "/mentor/mentors", icon: UsersRound, group: "Workspace" },
     { label: "Session Notices", href: "/mentor/dashboard#notices", icon: BellRing, group: "Quick access" },
     { label: "Coordination Hub", href: "/mentor/coordination", icon: MessageSquare, group: "Quick access" },
+    { label: "Student Identify", href: "/student-identify", icon: Search, group: "Quick access" },
+    { label: "Active Students", href: "/mentor/students", icon: UsersRound, group: "Quick access" },
     { label: "My Batch", href: "/student/my-batch", icon: Megaphone, group: "Student workspace" },
     { label: "Lab Report Generator", href: "/student/lab-report-generator", icon: FileText, group: "Student workspace" },
-    { label: "Session Remarks", href: "/mentor/dashboard#remarks", icon: MessageSquareText, group: "Quick access" },
     { label: "My Evaluation", href: "/mentor/dashboard#my-evaluation", icon: Award, group: "Quick access" },
     studentPortalItem,
   ],
@@ -82,7 +85,6 @@ const roleItems: Record<string, SidebarItem[]> = {
     { label: "Mentor Evaluation", href: "/student/evaluations", icon: Star, group: "Workspace" },
     { label: "My Batch", href: "/student/my-batch", icon: Megaphone, group: "Workspace" },
     { label: "Session Notices", href: "/student/dashboard#notices", icon: BellRing, group: "Quick access" },
-    { label: "Session Remarks", href: "/student/dashboard#remarks", icon: MessageSquareText, group: "Quick access" },
     studentPortalItem,
   ],
 };
@@ -92,8 +94,12 @@ export function Sidebar() {
   const [hash, setHash] = useState("");
   const [accountRole, setAccountRole] = useState<string | null>(null);
   const routeRole = pathname.split("/")[1];
-  const role = routeRole === "student" && accountRole === "MENTOR" ? "mentor" : routeRole;
-  const items = roleItems[role] ?? [];
+  const role = routeRole === "student" && accountRole === "MENTOR"
+    ? "mentor"
+    : routeRole === "student-identify"
+      ? accountRole?.toLowerCase()
+      : routeRole;
+  const items = roleItems[role ?? ""] ?? [];
 
   useEffect(() => {
     const updateHash = () => setHash(window.location.hash);
