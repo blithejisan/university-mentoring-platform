@@ -8,6 +8,8 @@ import { StudentNoticesView } from "@/components/student-notices-view";
 import { StudentRemarksView } from "@/components/student-remarks-view";
 import Link from "next/link";
 import { ArrowRight, FlaskConical } from "lucide-react";
+import { DashboardOverview } from "@/components/dashboard-overview";
+import { CalendarDays, Layers3 } from "lucide-react";
 
 export default async function StudentDashboardPage() {
   const session = await getCurrentUser();
@@ -18,15 +20,45 @@ export default async function StudentDashboardPage() {
     where: { studentId: session.sub, leftAt: null },
     select: { batch: { select: { id: true, name: true } } },
   });
+  const [student, upcomingSessionsCount] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: session.sub },
+      select: {
+        name: true,
+        studentProfile: {
+          select: {
+            department: {
+              select: {
+                name: true,
+                university: { select: { name: true } },
+              },
+            },
+          },
+        },
+      },
+    }),
+    prisma.attendanceSession.count({
+      where: {
+        status: "SCHEDULED",
+        date: { gte: new Date() },
+        batch: { studentBatches: { some: { studentId: session.sub, leftAt: null } } },
+      },
+    }),
+  ]);
 
   return (
     <div className="page-enter mx-auto flex w-full max-w-7xl flex-col gap-7">
-      <div className="ai-neural-hero flex flex-col items-start justify-between gap-4 rounded-2xl border border-slate-700 bg-slate-900/75 p-5 backdrop-blur-md sm:flex-row sm:items-center sm:p-6">
-        <div>
-          <p className="text-sm font-medium text-cyan-300">Student portal</p>
-          <h1 className="mt-1 text-2xl font-semibold leading-tight text-slate-900">My Student Dashboard</h1>
-        </div>
-      </div>
+      <DashboardOverview
+        role="Student"
+        name={student?.name ?? null}
+        universityName={student?.studentProfile?.department.university.name ?? null}
+        departmentName={student?.studentProfile?.department.name ?? null}
+        description="Your mentoring sessions, batch updates, and academic progress in one place."
+        metrics={[
+          { label: "Current batches", value: currentBatches.length, Icon: Layers3, tone: "violet" },
+          { label: "Upcoming sessions", value: upcomingSessionsCount, Icon: CalendarDays, tone: "teal" },
+        ]}
+      />
 
       <section className="ai-neon-card flex flex-col gap-4 rounded-lg border border-slate-700 bg-slate-900/75 p-4 shadow-sm backdrop-blur-md transition-all duration-200 hover:border-cyan-400/30 hover:shadow-[0_0_15px_rgba(6,182,212,0.08)] sm:flex-row sm:items-center sm:justify-between sm:px-5">
         <div className="flex items-start gap-3">

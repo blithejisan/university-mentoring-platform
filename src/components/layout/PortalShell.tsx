@@ -11,7 +11,7 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
   const showSidebar = (hasRolePath && !pathname.startsWith("/pending-approval")) || pathname === "/profile";
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-background text-foreground">
+    <div className="portal-shell flex min-h-screen w-full flex-col bg-background text-foreground">
       <Navbar />
       <div className={showSidebar ? "flex flex-1 flex-col md:flex-row" : "flex flex-1 flex-col"}>
         {showSidebar && <Sidebar />}
@@ -19,7 +19,7 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
           <main
             className={
               showSidebar
-                ? "flex-1 p-6 md:p-8"
+                ? "min-w-0 flex-1 p-4 sm:p-6 lg:p-8"
                 : "mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8"
             }
           >

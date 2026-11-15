@@ -11,13 +11,22 @@ import { SessionMonitoringDashboard } from "@/components/session-monitoring-dash
 import { BatchPerformanceReport } from "@/components/batch-performance-report";
 import { ScopedUpcomingSessions } from "@/components/scoped-upcoming-sessions";
 import { EmailTemplateSettings } from "@/components/email-template-settings";
+import { DashboardOverview } from "@/components/dashboard-overview";
+import { CalendarDays, Layers3, UserRound, UsersRound } from "lucide-react";
 
 export default async function AdminDashboardPage() {
   const session = await getCurrentUser();
   if (!session) redirect("/login");
   if (session.role !== "ADMIN") redirect("/");
 
-  const admin = await prisma.user.findUnique({ where: { id: session.sub }, select: { universityId: true } });
+  const admin = await prisma.user.findUnique({
+    where: { id: session.sub },
+    select: {
+      name: true,
+      universityId: true,
+      university: { select: { name: true } },
+    },
+  });
   const departments = admin
     ? await prisma.department.findMany({
         where: { universityId: admin.universityId },
@@ -25,29 +34,46 @@ export default async function AdminDashboardPage() {
         orderBy: { name: "asc" },
       })
     : [];
+  const now = new Date();
+  const metrics = admin
+    ? await Promise.all([
+        prisma.studentProfile.count({
+          where: { user: { universityId: admin.universityId, status: "ACTIVE" } },
+        }),
+        prisma.batch.count({
+          where: { department: { universityId: admin.universityId }, status: "ACTIVE" },
+        }),
+        prisma.mentorProfile.count({
+          where: {
+            approvalStatus: "APPROVED",
+            user: { universityId: admin.universityId, status: "ACTIVE" },
+          },
+        }),
+        prisma.attendanceSession.count({
+          where: {
+            status: "SCHEDULED",
+            date: { gte: now },
+            batch: { department: { universityId: admin.universityId } },
+          },
+        }),
+      ])
+    : [0, 0, 0, 0];
 
   return (
     <div className="page-enter space-y-7">
-      
-      {/* Top Header & Welcome Banner */}
-      <div className="ai-neural-hero relative overflow-hidden rounded-2xl border border-slate-700 bg-slate-900/75 p-6 text-slate-100 shadow-lg shadow-slate-900/10 backdrop-blur-md sm:p-8">
-        
-        <div className="relative z-10 flex flex-col items-start justify-between gap-6 md:flex-row md:items-center">
-          <div className="max-w-2xl space-y-3">
-            <div className="inline-flex items-center gap-2 rounded-md border border-border bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground">
-              <span className="ai-active-dot size-2 rounded-full" />
-              <span>ADS Department Active Portal</span>
-            </div>
-            <h1 className="text-2xl font-bold leading-tight sm:text-3xl">
-              Admin Portal Dashboard
-            </h1>
-            <p className="max-w-2xl text-sm leading-relaxed text-slate-200">
-              Manage batches, approve mentor credentials, monitor student attendance thresholds, and broadcast university-wide notices.
-            </p>
-          </div>
-
-        </div>
-      </div>
+      <DashboardOverview
+        role="Admin"
+        name={admin?.name ?? null}
+        universityName={admin?.university.name ?? null}
+        departmentName={departments.length === 1 ? departments[0].name : null}
+        description="A clear view of batches, mentoring activity, and university-wide student support."
+        metrics={[
+          { label: "Active students", value: metrics[0], Icon: UsersRound, tone: "cyan" },
+          { label: "Active batches", value: metrics[1], Icon: Layers3, tone: "violet" },
+          { label: "Approved mentors", value: metrics[2], Icon: UserRound, tone: "teal" },
+          { label: "Upcoming sessions", value: metrics[3], Icon: CalendarDays, tone: "amber" },
+        ]}
+      />
 
       <section id="sessions" className="scroll-mt-4 space-y-7">
         <SessionMonitoringDashboard role="ADMIN" />

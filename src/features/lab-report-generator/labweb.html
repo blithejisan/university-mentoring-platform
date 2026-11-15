@@ -6,8 +6,8 @@
 <title>Lab Report Generator — GUB ADS</title>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet"/>
 <style>
-:root{--bg:#f5f4f0;--surface:#fff;--border:#e2ddd5;--border2:#d4cfc6;
-  --text:#1a1814;--muted:#7a7268;--accent:#1b6b3a;--accent2:#267a44;
+:root{color-scheme:dark;--bg:#0a1220;--surface:rgba(17,29,44,.94);--border:#2a3a4e;--border2:#40546b;
+  --text:#e5edf6;--muted:#a9bacd;--accent:#0d8490;--accent2:#12a1ad;
   --gold:#b8960c;--gold2:#c9a814;--red:#c0392b;
   --mono:"JetBrains Mono",monospace;--sans:"DM Sans",sans-serif;--serif:"DM Serif Display",serif;}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
@@ -48,7 +48,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:1
 .field:last-child{margin-bottom:0;}
 label{display:block;font-size:10.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;}
 input,textarea,select{width:100%;padding:10px 12px;background:var(--bg);border:1.5px solid var(--border2);border-radius:8px;color:var(--text);font-family:var(--sans);font-size:14px;outline:none;transition:all .2s;}
-input:focus,textarea:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(27,107,58,.1);background:#fff;}
+input:focus,textarea:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(34,211,238,.12);background:var(--surface);}
 input::placeholder,textarea::placeholder{color:#c0bab2;}
 textarea{resize:vertical;line-height:1.65;}
 textarea.mono{font-family:var(--mono);font-size:12.5px;background:#fafaf8;}
@@ -102,6 +102,27 @@ select{cursor:pointer;}
 .sv{display:none;}
 .sv.active{display:block;animation:fu .3s ease both;}
 @keyframes fu{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+:root{color-scheme:dark;}
+body{background:var(--bg);color:var(--text);}
+.sidebar{background:linear-gradient(180deg,#111d2c,#0b1523);box-shadow:inset -1px 0 rgba(148,163,184,.08);}
+.sb-top,.sb-foot{border-color:rgba(148,163,184,.14);}
+.sb-foot{background:rgba(2,8,18,.24);}
+.main{background:var(--bg);}
+.card{background:var(--surface);border-color:var(--border);box-shadow:0 8px 26px rgba(2,8,18,.18);backdrop-filter:blur(12px);}
+.ch{border-color:var(--border);}
+.ci{background:rgba(34,211,238,.1);}
+input,textarea,select{background:#0d1929;border-color:var(--border2);color:var(--text);}
+input::placeholder,textarea::placeholder{color:#8193a8;}
+.bp{background:var(--accent);box-shadow:0 3px 12px rgba(13,132,144,.2);}
+.bp:hover:not(:disabled){background:var(--accent2);}
+.sbanner{background:linear-gradient(120deg,#102b3c,#123b46);border:1px solid rgba(68,199,207,.2);box-shadow:0 8px 24px rgba(2,8,18,.2);}
+.igreen{background:rgba(16,120,91,.12);border-color:rgba(110,231,183,.2);color:#b6f2d3;}
+.igold{background:rgba(161,98,7,.13);border-color:rgba(252,211,77,.2);color:#f8df9b;}
+.qc{background:rgba(13,25,41,.75);border-color:var(--border2);}
+.brem{background:rgba(185,28,28,.15);border-color:rgba(248,113,113,.25);color:#fca5a5;}
+.brem:hover{background:rgba(185,28,28,.25);}
+#pdf-status.err{background:rgba(127,29,29,.28);border-color:rgba(248,113,113,.3);color:#fecaca;}
+#pdf-status.ok{background:rgba(16,120,91,.18);border-color:rgba(110,231,183,.25);color:#b6f2d3;}
 @media(max-width:760px){
   .layout{grid-template-columns:1fr;}
   .sidebar{height:auto;position:relative;}

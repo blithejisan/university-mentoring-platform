@@ -20,13 +20,13 @@ export function Navbar() {
       : "/";
 
   return (
-    <header className="sticky top-0 z-50 w-full shrink-0 border-b border-slate-800/30 bg-slate-950/30 px-4 py-2 shadow-sm shadow-slate-950/20 backdrop-blur-md transition-colors duration-200 sm:px-6 lg:px-8">
+    <header className="portal-navbar sticky top-0 z-50 w-full shrink-0 border-b border-slate-700/60 bg-slate-950/80 px-3 py-2 shadow-sm shadow-slate-950/20 backdrop-blur-xl transition-colors duration-200 sm:px-5 lg:px-7">
       <div className="flex min-h-12 items-center justify-between gap-2 sm:gap-4">
         <Link
           href={homeHref}
           className="group flex min-w-0 items-center gap-2 sm:gap-3"
         >
-          <div className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 p-1 shadow-sm transition-colors group-hover:border-cyan-500/50 sm:gap-2 sm:p-1.5">
+          <div className="flex shrink-0 items-center gap-1.5 rounded-xl border border-slate-700/80 bg-slate-800/70 p-1 shadow-sm transition-colors group-hover:border-cyan-500/50 sm:gap-2 sm:p-1.5">
             <div className="relative size-7 sm:size-9">
               <Image src="/gub-logo.png" alt="GUB logo" fill sizes="36px" className="object-contain" />
             </div>
@@ -36,10 +36,10 @@ export function Navbar() {
             </div>
           </div>
           <div className="flex min-w-0 flex-col gap-0.5">
-            <span className="truncate text-xs font-bold leading-tight text-slate-50 drop-shadow-[0_0_10px_rgba(52,211,153,0.35)] transition-colors group-hover:text-cyan-100 sm:text-base">
+            <span className="truncate text-xs font-semibold leading-tight text-slate-50 transition-colors group-hover:text-cyan-100 sm:text-base">
               Mentor &amp; Student Management Platform
             </span>
-            <span className="truncate text-[10px] font-medium leading-snug text-slate-200 sm:text-xs">
+            <span className="truncate text-[10px] font-medium leading-snug text-slate-400 sm:text-xs">
               Department of AI &amp; Data Science
             </span>
           </div>

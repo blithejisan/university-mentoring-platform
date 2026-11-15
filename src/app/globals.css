@@ -4,23 +4,23 @@
 :root {
   --radius: 0.625rem;
 
-  --background: #0f172a;
-  --foreground: #e2e8f0;
+  --background: #0a1220;
+  --foreground: #e5edf6;
 
-  --card: #0b1220;
+  --card: #111d2c;
   --card-foreground: #f1f5f9;
 
-  --primary: #0e7490;
+  --primary: #0d8490;
   --primary-foreground: #ffffff;
 
-  --secondary: #1e293b;
+  --secondary: #1b2a3b;
   --secondary-foreground: #e2e8f0;
 
-  --muted: #1e293b;
-  --muted-foreground: #cbd5e1;
+  --muted: #172638;
+  --muted-foreground: #a9bacd;
 
-  --accent: #06b6d4;
-  --accent-foreground: #082f49;
+  --accent: #22b8c2;
+  --accent-foreground: #082f36;
 
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
@@ -31,9 +31,9 @@
   --warning: #f59e0b;
   --warning-foreground: #ffffff;
 
-  --border: #334155;
-  --input: #475569;
-  --ring: #22d3ee;
+  --border: #2a3a4e;
+  --input: #40546b;
+  --ring: #44c7cf;
 }
 
 :root.light {
@@ -264,31 +264,59 @@ html {
 
 /* Keep legacy utility-based screens coherent as shared components adopt tokens. */
 :root.dark .theme-obsidian [class~="bg-white"] {
-  background-color: #1e293b;
+  background-color: #142235;
 }
 
 :root.dark .theme-obsidian [class~="bg-white/90"] {
-  background-color: rgb(30 41 59 / 90%);
+  background-color: rgb(20 34 53 / 90%);
 }
 
 :root.dark .theme-obsidian [class~="bg-white/80"] {
-  background-color: rgb(30 41 59 / 80%);
+  background-color: rgb(20 34 53 / 80%);
 }
 
 :root.dark .theme-obsidian [class~="bg-white/70"] {
-  background-color: rgb(30 41 59 / 70%);
+  background-color: rgb(20 34 53 / 70%);
 }
 
 :root.dark .theme-obsidian [class~="bg-slate-50"] {
-  background-color: #0f172a;
+  background-color: #0d1929;
 }
 
 :root.dark .theme-obsidian [class~="bg-slate-100"] {
-  background-color: #1e293b;
+  background-color: #172638;
 }
 
 :root.dark .theme-obsidian [class~="bg-slate-200"] {
-  background-color: #334155;
+  background-color: #22354a;
+}
+
+:root.dark .theme-obsidian :is(
+  [class~="bg-emerald-50"],
+  [class~="bg-green-50"],
+  [class~="bg-lime-50"]
+) {
+  background-color: rgb(16 120 91 / 17%);
+}
+
+:root.dark .theme-obsidian :is(
+  [class~="bg-cyan-50"],
+  [class~="bg-sky-50"],
+  [class~="bg-blue-50"]
+) {
+  background-color: rgb(8 125 153 / 18%);
+}
+
+:root.dark .theme-obsidian :is([class~="bg-amber-50"], [class~="bg-yellow-50"]) {
+  background-color: rgb(161 98 7 / 18%);
+}
+
+:root.dark .theme-obsidian :is([class~="bg-red-50"], [class~="bg-rose-50"]) {
+  background-color: rgb(185 28 28 / 17%);
+}
+
+:root.dark .theme-obsidian :is([class~="bg-indigo-50"], [class~="bg-violet-50"]) {
+  background-color: rgb(91 70 170 / 18%);
 }
 
 :root.dark .theme-obsidian [class~="text-slate-900"] {
@@ -318,9 +346,29 @@ html {
 }
 
 :root.dark .theme-obsidian [class~="text-emerald-600"],
-:root.dark .theme-obsidian [class~="text-emerald-700"] {
+:root.dark .theme-obsidian [class~="text-emerald-700"],
+:root.dark .theme-obsidian [class~="text-emerald-800"] {
   color: #6ee7b7;
-  text-shadow: 0 0 10px rgb(16 185 129 / 22%);
+  text-shadow: 0 0 8px rgb(16 185 129 / 14%);
+}
+
+:root.dark .theme-obsidian :is(
+  [class~="text-green-700"],
+  [class~="text-green-800"],
+  [class~="text-lime-700"],
+  [class~="text-lime-800"]
+) {
+  color: #8de0bc;
+}
+
+:root.dark .theme-obsidian :is(
+  [class~="text-cyan-700"],
+  [class~="text-cyan-800"],
+  [class~="text-sky-700"],
+  [class~="text-blue-700"],
+  [class~="text-blue-800"]
+) {
+  color: #7dd8e3;
 }
 
 :root.dark .theme-obsidian [class~="text-red-600"],
@@ -330,9 +378,45 @@ html {
 }
 
 :root.dark .theme-obsidian [class~="text-amber-600"],
-:root.dark .theme-obsidian [class~="text-amber-700"] {
+ :root.dark .theme-obsidian [class~="text-amber-700"],
+ :root.dark .theme-obsidian [class~="text-amber-800"] {
   color: #fcd34d;
-  text-shadow: 0 0 10px rgb(251 191 36 / 20%);
+  text-shadow: 0 0 8px rgb(251 191 36 / 14%);
+}
+
+:root.dark .theme-obsidian :is(
+  [class~="border-emerald-100"],
+  [class~="border-emerald-200"],
+  [class~="border-green-100"],
+  [class~="border-green-200"],
+  [class~="border-cyan-100"],
+  [class~="border-cyan-200"],
+  [class~="border-amber-100"],
+  [class~="border-amber-200"],
+  [class~="border-red-100"],
+  [class~="border-red-200"]
+) {
+  border-color: rgb(117 148 169 / 28%);
+}
+
+:root.dark .theme-obsidian [class~="bg-[#edf5ee]"] {
+  background-color: rgb(16 120 91 / 17%);
+}
+
+:root.dark .theme-obsidian [class~="border-[#d4e3d7]"] {
+  border-color: rgb(117 148 169 / 28%);
+}
+
+:root.dark .theme-obsidian .lab-generator-link {
+  border-color: rgb(68 199 207 / 34%);
+  background: rgb(13 132 144 / 22%);
+  color: #a5f3fc;
+  box-shadow: none;
+}
+
+:root.dark .theme-obsidian .lab-generator-link:hover {
+  background: rgb(13 132 144 / 34%);
+  box-shadow: 0 4px 16px rgb(34 211 238 / 10%);
 }
 
 :root.dark .theme-obsidian [class~="text-[#34724f]"] {
@@ -356,19 +440,19 @@ html {
 }
 
 :root.dark .theme-obsidian [data-slot="card"] {
-  border-color: rgb(71 85 105 / 65%);
-  background-color: rgb(11 18 32 / 94%);
+  border-color: rgb(67 88 110 / 58%);
+  background-color: rgb(17 29 44 / 92%);
   color: #f1f5f9;
   backdrop-filter: blur(12px);
 }
 
 :root.dark .theme-obsidian [data-slot="card"]:hover {
-  border-color: rgb(34 211 238 / 38%);
-  box-shadow: 0 8px 24px rgb(2 6 23 / 22%), 0 0 16px rgb(34 211 238 / 8%);
+  border-color: rgb(68 199 207 / 34%);
+  box-shadow: 0 10px 28px rgb(2 6 23 / 20%), 0 0 14px rgb(34 211 238 / 6%);
 }
 
 :root.dark .theme-obsidian [data-slot="card-title"] {
-  text-shadow: 0 0 12px rgb(34 211 238 / 12%);
+  text-shadow: 0 0 10px rgb(34 211 238 / 8%);
 }
 
 :root.dark .theme-obsidian [data-slot="card-title"][class~="text-2xl"],
@@ -379,7 +463,7 @@ html {
 
 :root.dark .theme-obsidian main :is(h1, h2) {
   color: #f8fafc;
-  text-shadow: 0 0 14px rgb(34 211 238 / 12%);
+  text-shadow: 0 0 12px rgb(34 211 238 / 8%);
 }
 
 :root.dark .theme-obsidian table {
@@ -399,6 +483,12 @@ html {
   animation: page-enter 320ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .page-enter {
+    animation: none;
+  }
+}
+
 .ai-neon-card {
   position: relative;
   isolation: isolate;
@@ -410,13 +500,9 @@ html {
   z-index: 0;
   inset: 0;
   border-radius: inherit;
-  box-shadow:
-    0 0 18px rgb(6 182 212 / 11%),
-    0 0 36px rgb(139 92 246 / 6%);
-  animation: ai-neon-breathe 4s ease-in-out infinite;
+  box-shadow: 0 0 20px rgb(6 182 212 / 5%);
   content: "";
   pointer-events: none;
-  will-change: transform, opacity;
 }
 
 .ai-neural-hero {
@@ -431,16 +517,14 @@ html {
   inset: 0;
   padding: 1px;
   border-radius: inherit;
-  background: linear-gradient(115deg, #22d3ee, #6366f1, #a78bfa, #22d3ee);
-  background-size: 240% 240%;
-  animation: ai-neural-shift 8s ease-in-out infinite;
+  background: linear-gradient(115deg, rgb(34 211 238 / 45%), rgb(167 139 250 / 22%), rgb(34 211 238 / 35%));
   content: "";
   pointer-events: none;
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   mask-composite: exclude;
-  will-change: transform, opacity;
+  opacity: 0.55;
 }
 
 .ai-active-dot {
@@ -567,7 +651,47 @@ select:focus-visible,
   inset: 0;
   overflow: hidden;
   pointer-events: none;
-  opacity: 0.16;
+  opacity: 0.07;
+}
+
+.dashboard-welcome {
+  isolation: isolate;
+}
+
+.dashboard-welcome-overlay {
+  background:
+    linear-gradient(90deg, rgb(7 17 30 / 94%) 0%, rgb(7 17 30 / 79%) 42%, rgb(7 17 30 / 36%) 100%),
+    linear-gradient(0deg, rgb(7 17 30 / 28%), transparent 75%);
+}
+
+.dashboard-metric:hover {
+  border-color: rgb(68 199 207 / 35%);
+  background-color: rgb(20 34 53 / 88%);
+}
+
+.portal-navbar {
+  min-height: 4rem;
+}
+
+.portal-sidebar {
+  scrollbar-gutter: stable;
+}
+
+.portal-footer {
+  font-size: 0.9rem;
+}
+
+@media (max-width: 767px) {
+  .portal-sidebar nav {
+    scrollbar-width: thin;
+    overscroll-behavior-x: contain;
+  }
+
+  .dashboard-welcome-overlay {
+    background:
+      linear-gradient(90deg, rgb(7 17 30 / 91%), rgb(7 17 30 / 65%)),
+      linear-gradient(0deg, rgb(7 17 30 / 35%), transparent 80%);
+  }
 }
 
 .neural-background svg {

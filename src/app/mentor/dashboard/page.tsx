@@ -7,27 +7,67 @@ import { MentorEvaluationsDashboard } from "@/components/mentor-evaluations-dash
 import { MentorNoticesManagement } from "@/components/mentor-notices-management";
 import { MentorRemarksManagement } from "@/components/mentor-remarks-management";
 import { BatchPerformanceReport } from "@/components/batch-performance-report";
+import { DashboardOverview } from "@/components/dashboard-overview";
+import { CalendarDays, Layers3, UsersRound } from "lucide-react";
 
 export default async function MentorDashboardPage() {
   const session = await getCurrentUser();
   if (!session) redirect("/login");
   if (session.role !== "MENTOR") redirect("/");
 
-  const profile = await prisma.mentorProfile.findUnique({ where: { userId: session.sub } });
+  const profile = await prisma.mentorProfile.findUnique({
+    where: { userId: session.sub },
+    select: {
+      approvalStatus: true,
+      user: { select: { name: true } },
+      department: {
+        select: {
+          name: true,
+          university: { select: { name: true } },
+        },
+      },
+    },
+  });
   if (profile?.approvalStatus !== "APPROVED") redirect("/pending-approval");
 
-  const assignedBatchesCount = await prisma.mentorBatch.count({
-    where: { mentorId: session.sub },
-  });
+  const now = new Date();
+  const [assignedBatchesCount, activeStudentsCount, upcomingSessionsCount] =
+    await Promise.all([
+      prisma.mentorBatch.count({ where: { mentorId: session.sub } }),
+      prisma.studentProfile.count({
+        where: {
+          user: { status: "ACTIVE" },
+          studentBatches: {
+            some: {
+              leftAt: null,
+              batch: { mentorBatches: { some: { mentorId: session.sub } } },
+            },
+          },
+        },
+      }),
+      prisma.attendanceSession.count({
+        where: {
+          status: "SCHEDULED",
+          date: { gte: now },
+          batch: { mentorBatches: { some: { mentorId: session.sub } } },
+        },
+      }),
+    ]);
 
   return (
     <div className="page-enter mx-auto flex w-full max-w-7xl flex-col gap-7">
-      <div className="ai-neural-hero flex flex-col items-start justify-between gap-4 rounded-2xl border border-slate-700 bg-slate-900/75 p-5 backdrop-blur-md sm:flex-row sm:items-center sm:p-6">
-        <div>
-          <p className="text-sm font-medium text-cyan-300">Mentor portal</p>
-          <h1 className="mt-1 text-2xl font-semibold leading-tight text-slate-900">Dashboard</h1>
-        </div>
-      </div>
+      <DashboardOverview
+        role="Mentor"
+        name={profile.user.name}
+        universityName={profile.department.university.name}
+        departmentName={profile.department.name}
+        description="Manage mentoring sessions, stay connected with your students, and follow their progress."
+        metrics={[
+          { label: "Assigned batches", value: assignedBatchesCount, Icon: Layers3, tone: "violet" },
+          { label: "Active students", value: activeStudentsCount, Icon: UsersRound, tone: "cyan" },
+          { label: "Upcoming sessions", value: upcomingSessionsCount, Icon: CalendarDays, tone: "teal" },
+        ]}
+      />
 
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
         <Card className="ai-neon-card">

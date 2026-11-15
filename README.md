@@ -71,7 +71,7 @@ The server is authoritative for role and scope checks. Public registration accep
 | Email | Nodemailer/SMTP or Resend; console provider for local development |
 | Hosting | Vercel-compatible Next.js deployment |
 
-**Implementation note:** Framer Motion and Multer are not dependencies in the current `package.json`. The current application also does not document a file-upload pipeline or a dark/light theme switch; those should be treated as future additions rather than installed capabilities.
+**Implementation note:** Framer Motion and Multer are not dependencies in the current `package.json`. Theme selection supports system, light, and dark modes. Batch notice attachment storage and provider configuration are described below.
 
 ## Architecture
 

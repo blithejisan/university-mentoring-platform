@@ -9,11 +9,11 @@ export function Footer() {
   const [activeModal, setActiveModal] = useState<string | null>(null);
 
   return (
-    <footer className="relative mt-auto w-full border-t border-slate-800/30 bg-slate-950/30 pt-16 pb-12 text-base text-slate-300 backdrop-blur-md md:pb-16">
-      <div className="max-w-7xl mx-auto px-6 sm:px-10 relative z-10">
+    <footer className="portal-footer relative mt-auto w-full border-t border-slate-700/50 bg-slate-950/45 pt-10 pb-7 text-base text-slate-300 backdrop-blur-xl md:pb-8">
+      <div className="relative z-10 mx-auto max-w-7xl px-5 sm:px-8">
         
         {/* Original 3-Column Layout */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-10 pb-12 border-b border-slate-800/80">
+        <div className="grid grid-cols-1 gap-8 border-b border-slate-800/80 pb-8 md:grid-cols-3">
           
           {/* Column 1: Brand & Overview */}
           <div className="space-y-4">

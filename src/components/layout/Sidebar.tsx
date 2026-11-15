@@ -122,8 +122,8 @@ export function Sidebar() {
     { label: "Profile & Security", href: "/profile", icon: UserRound, group: "Account" },
   ];
   return (
-    <aside className="z-20 flex w-full shrink-0 flex-col border-b border-slate-700/70 bg-slate-900/75 backdrop-blur-md md:sticky md:top-16 md:h-[calc(100vh-4rem)] md:w-64 md:self-start md:overflow-y-auto md:border-b-0 md:border-r">
-      <nav aria-label="Primary navigation" className="flex gap-1 overflow-x-auto p-3 md:flex-1 md:flex-col md:gap-1.5 md:p-4">
+    <aside className="portal-sidebar z-20 flex w-full shrink-0 flex-col border-b border-slate-700/70 bg-slate-950/55 backdrop-blur-xl md:sticky md:top-16 md:h-[calc(100vh-4rem)] md:w-60 md:self-start md:overflow-y-auto md:border-b-0 md:border-r lg:w-64">
+      <nav aria-label="Primary navigation" className="flex gap-1 overflow-x-auto p-2.5 md:flex-1 md:flex-col md:gap-1 md:p-3">
         {links.map(({ label, href, icon: Icon, external, group }, index) => {
           const showGroup = index === 0 || links[index - 1].group !== group;
           const hrefPath = href.split("#")[0];
@@ -148,10 +148,10 @@ export function Sidebar() {
                 target={external ? "_blank" : undefined}
                 rel={external ? "noopener noreferrer" : undefined}
                 aria-current={active ? "page" : undefined}
-                className={`group flex min-h-11 shrink-0 items-center gap-3 rounded-lg border-l-2 px-3 py-2 text-sm font-medium transition-all duration-200 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 md:w-full ${
+                className={`group flex min-h-10 shrink-0 items-center gap-3 rounded-lg border-l-2 px-3 py-2 text-sm font-medium transition-colors duration-200 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 md:w-full ${
                   active
-                    ? "border-l-cyan-300 bg-cyan-400/10 text-cyan-100 shadow-[inset_0_0_18px_rgba(6,182,212,0.06),0_0_14px_rgba(6,182,212,0.08)]"
-                    : "border-l-transparent text-slate-300 hover:border-l-cyan-500/50 hover:bg-slate-800/80 hover:text-slate-100"
+                    ? "border-l-cyan-300 bg-cyan-300/10 text-cyan-100"
+                    : "border-l-transparent text-slate-300 hover:border-l-cyan-400/50 hover:bg-slate-800/70 hover:text-slate-100"
                 }`}
               >
                 <Icon aria-hidden="true" className={`size-4 shrink-0 ${active ? "text-cyan-200" : "text-slate-400 group-hover:text-cyan-200"}`} />

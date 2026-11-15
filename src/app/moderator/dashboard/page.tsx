@@ -9,6 +9,8 @@ import { DepartmentRemarksOversight } from "@/components/department-remarks-over
 import { SessionMonitoringDashboard } from "@/components/session-monitoring-dashboard";
 import { BatchPerformanceReport } from "@/components/batch-performance-report";
 import { ScopedUpcomingSessions } from "@/components/scoped-upcoming-sessions";
+import { DashboardOverview } from "@/components/dashboard-overview";
+import { CalendarDays, Layers3, UserRound, UsersRound } from "lucide-react";
 
 export default async function ModeratorDashboardPage() {
   const session = await getCurrentUser();
@@ -17,17 +19,64 @@ export default async function ModeratorDashboardPage() {
 
   const modProfile = await prisma.moderatorProfile.findUnique({
     where: { userId: session.sub },
-    select: { departmentId: true },
+    select: {
+      departmentId: true,
+      department: {
+        select: {
+          name: true,
+          university: { select: { name: true } },
+        },
+      },
+    },
   });
+  const moderator = await prisma.user.findUnique({
+    where: { id: session.sub },
+    select: { name: true },
+  });
+  const now = new Date();
+  const metrics = modProfile
+    ? await Promise.all([
+        prisma.studentProfile.count({
+          where: {
+            departmentId: modProfile.departmentId,
+            user: { status: "ACTIVE" },
+          },
+        }),
+        prisma.batch.count({
+          where: { departmentId: modProfile.departmentId, status: "ACTIVE" },
+        }),
+        prisma.mentorProfile.count({
+          where: {
+            departmentId: modProfile.departmentId,
+            approvalStatus: "APPROVED",
+            user: { status: "ACTIVE" },
+          },
+        }),
+        prisma.attendanceSession.count({
+          where: {
+            status: "SCHEDULED",
+            date: { gte: now },
+            batch: { departmentId: modProfile.departmentId },
+          },
+        }),
+      ])
+    : [0, 0, 0, 0];
 
   return (
     <div className="page-enter mx-auto flex w-full max-w-7xl flex-col gap-7">
-      <div className="ai-neural-hero flex flex-col items-start justify-between gap-4 rounded-2xl border border-slate-700 bg-slate-900/75 p-5 backdrop-blur-md sm:flex-row sm:items-center sm:p-6">
-        <div>
-          <p className="text-sm font-medium text-cyan-300">Moderator portal</p>
-          <h1 className="mt-1 text-2xl font-semibold leading-tight text-slate-900">Department Dashboard</h1>
-        </div>
-      </div>
+      <DashboardOverview
+        role="Moderator"
+        name={moderator?.name ?? null}
+        universityName={modProfile?.department.university.name ?? null}
+        departmentName={modProfile?.department.name ?? null}
+        description="Keep your department's mentoring, batches, and student support moving forward."
+        metrics={[
+          { label: "Active students", value: metrics[0], Icon: UsersRound, tone: "cyan" },
+          { label: "Active batches", value: metrics[1], Icon: Layers3, tone: "violet" },
+          { label: "Approved mentors", value: metrics[2], Icon: UserRound, tone: "teal" },
+          { label: "Upcoming sessions", value: metrics[3], Icon: CalendarDays, tone: "amber" },
+        ]}
+      />
 
       <DepartmentAttendanceOverviewCard />
 
